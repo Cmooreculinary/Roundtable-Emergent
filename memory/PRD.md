@@ -131,6 +131,16 @@
 - **One-tap redial** opens VideoCallOverlay with the same target
 - Accessible from **Sidebar** (between Walkie Talkie and Apps) and **Dock** (green Calls icon)
 
+### Auto-SMS Notifications (Opt-in)
+- **"Text me when I miss something"** — single toggle in Settings
+- Users add phone number + enable toggle → get SMS when offline for:
+  - Walkie pings directed at them
+  - Direct messages they missed
+  - New prayer/intention items at their tables
+  - Missed incoming calls
+- `send_auto_sms_if_offline()` helper checks: user offline, auto_sms=true, phone exists, Twilio configured
+- Phone number + auto_sms fields added to user profile (PUT /api/me, GET /api/auth/me)
+
 ## Backlog
 
 ### Deferred Enhancement (user said "remember, don't build yet")
@@ -160,3 +170,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 5 (Phase 5):** Backend 23/23 (100%), Frontend 100% — zero regressions
 - **Iteration 6 (Call History):** Backend 20/20 (100%), Frontend 100% — zero regressions
 - **Iteration 7 (Twilio SMS Bridge):** Backend 9/9 (100%), Frontend 100% — zero regressions
+- **Iteration 8 (Auto-SMS Opt-in):** Backend 18/18 (100%), Frontend 7/7 (100%) — zero regressions
