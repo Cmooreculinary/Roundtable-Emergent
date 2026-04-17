@@ -15,11 +15,13 @@ import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response as FastResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
+import asyncio
+import json as _json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("roundtable")
@@ -158,6 +160,76 @@ async def ensure_table_member(table_id: str, user_id: str) -> dict:
     if not m:
         raise HTTPException(status_code=403, detail="Not a member of this table")
     return m
+
+
+# ---------- WebSocket Connection Manager ----------
+class WSManager:
+    def __init__(self):
+        # user_id -> set of WebSocket
+        self._conns: dict = {}
+        self._lock = asyncio.Lock()
+
+    async def connect(self, user_id: str, ws: WebSocket):
+        await ws.accept()
+        async with self._lock:
+            self._conns.setdefault(user_id, set()).add(ws)
+        # Update presence
+        await db.users.update_one({"id": user_id}, {"$set": {"status": "online", "last_seen_at": now_iso()}})
+        await self.broadcast_to_contacts(user_id, {"type": "presence", "user_id": user_id, "status": "online"})
+
+    async def disconnect(self, user_id: str, ws: WebSocket):
+        async with self._lock:
+            if user_id in self._conns:
+                self._conns[user_id].discard(ws)
+                if not self._conns[user_id]:
+                    self._conns.pop(user_id, None)
+                    # Mark offline only if no other sockets for this user
+                    await db.users.update_one({"id": user_id}, {"$set": {"status": "offline", "last_seen_at": now_iso()}})
+                    await self.broadcast_to_contacts(user_id, {"type": "presence", "user_id": user_id, "status": "offline"})
+
+    async def send_to_user(self, user_id: str, payload: dict):
+        sockets = list(self._conns.get(user_id, set()))
+        if not sockets:
+            return
+        msg = _json.dumps(payload, default=str)
+        dead = []
+        for s in sockets:
+            try:
+                await s.send_text(msg)
+            except Exception:
+                dead.append(s)
+        if dead:
+            async with self._lock:
+                for s in dead:
+                    if user_id in self._conns:
+                        self._conns[user_id].discard(s)
+
+    async def send_to_users(self, user_ids: list, payload: dict):
+        for uid in set(user_ids):
+            await self.send_to_user(uid, payload)
+
+    async def broadcast_to_table(self, table_id: str, payload: dict, exclude_user: str = None):
+        members = await db.table_members.find({"table_id": table_id}, {"_id": 0}).to_list(500)
+        ids = [m["user_id"] for m in members if m["user_id"] != exclude_user]
+        await self.send_to_users(ids, payload)
+
+    async def broadcast_to_contacts(self, user_id: str, payload: dict):
+        """Send payload to all users who share a table with user_id."""
+        my_tables = await db.table_members.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+        table_ids = [m["table_id"] for m in my_tables]
+        if not table_ids:
+            return
+        member_ids = set()
+        async for m in db.table_members.find({"table_id": {"$in": table_ids}}, {"_id": 0}):
+            if m["user_id"] != user_id:
+                member_ids.add(m["user_id"])
+        await self.send_to_users(list(member_ids), payload)
+
+    def is_online(self, user_id: str) -> bool:
+        return bool(self._conns.get(user_id))
+
+
+ws_manager = WSManager()
 
 
 # ---------- Object storage ----------
@@ -409,7 +481,10 @@ async def update_me(payload: UserUpdateIn, user: dict = Depends(get_current_user
     if updates:
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
     refreshed = await db.users.find_one({"id": user["id"]}, {"_id": 0})
-    return user_public(refreshed)
+    pub = user_public(refreshed)
+    # Broadcast presence/profile change to contacts
+    await ws_manager.broadcast_to_contacts(user["id"], {"type": "user_updated", "user": pub})
+    return pub
 
 
 @api.get("/members")
@@ -554,6 +629,7 @@ async def add_item(table_id: str, payload: SharedItemIn, user: dict = Depends(ge
     await db.shared_items.insert_one(item)
     await db.tables.update_one({"id": table_id}, {"$set": {"last_activity": now_iso()}})
     item.pop("_id", None)
+    await ws_manager.broadcast_to_table(table_id, {"type": "item_added", "table_id": table_id, "item": item})
     return item
 
 
@@ -646,6 +722,11 @@ async def send_message(payload: MessageIn, user: dict = Depends(get_current_user
             "read": False, "created_at": now_iso(),
         })
     m.pop("_id", None)
+    # Live push
+    if payload.table_id:
+        await ws_manager.broadcast_to_table(payload.table_id, {"type": "message", "message": m})
+    else:
+        await ws_manager.send_to_users([payload.to_user, user["id"]], {"type": "message", "message": m})
     return m
 
 
@@ -746,6 +827,7 @@ async def send_text(payload: TextIn, user: dict = Depends(get_current_user)):
     }
     await db.texts.insert_one(t)
     t.pop("_id", None)
+    await ws_manager.send_to_users([payload.to_user, user["id"]], {"type": "text", "text": t})
     return t
 
 
@@ -837,16 +919,22 @@ async def mark_all_read(user: dict = Depends(get_current_user)):
 # ---------- Walkie ----------
 @api.post("/walkie/ping")
 async def walkie_ping(payload: WalkiePingIn, user: dict = Depends(get_current_user)):
-    await db.notifications.insert_one({
+    note = {
         "id": new_id(),
         "user_id": payload.to_user,
         "type": "walkie",
         "from_user": user["id"],
+        "from_name": user["name"],
+        "from_initials": user.get("initials"),
+        "from_color": user.get("color"),
         "message": f"{user['name']} is pinging you on the walkie",
         "read": False,
         "table_id": payload.table_id,
         "created_at": now_iso(),
-    })
+    }
+    await db.notifications.insert_one(dict(note))
+    note.pop("_id", None)
+    await ws_manager.send_to_user(payload.to_user, {"type": "walkie_ping", "notification": note})
     return {"ok": True}
 
 
@@ -916,6 +1004,13 @@ async def join_invite(payload: InviteJoinIn, user: dict = Depends(get_current_us
         "message": f"{user['name']} joined using your invite",
         "read": False,
         "created_at": now_iso(),
+    })
+    # Live notify the inviter so they can see the badge celebration if applicable
+    joined_count = await db.referrals.count_documents({"inviter_id": inv["created_by"], "status": "joined"})
+    await ws_manager.send_to_user(inv["created_by"], {
+        "type": "referral_joined",
+        "invitee_name": user["name"],
+        "joined_total": joined_count,
     })
     return {"ok": True, "table_id": inv["table_id"]}
 
@@ -997,6 +1092,51 @@ async def referral_leaderboard(user: dict = Depends(get_current_user)):
 @api.get("/")
 async def root():
     return {"service": "Round Table API", "status": "ok"}
+
+
+# ---------- WebSocket ----------
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    # Authenticate via cookie
+    token = websocket.cookies.get("rt_access")
+    if not token:
+        # Allow ?token= fallback for clients that can't send cookies
+        token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4401)
+        return
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            await websocket.close(code=4401)
+            return
+        user_id = payload["sub"]
+    except jwt.PyJWTError:
+        await websocket.close(code=4401)
+        return
+
+    await ws_manager.connect(user_id, websocket)
+    try:
+        await websocket.send_text(_json.dumps({"type": "ready", "user_id": user_id}))
+        while True:
+            data = await websocket.receive_text()
+            # Heartbeat / typing indicators
+            try:
+                msg = _json.loads(data)
+            except Exception:
+                continue
+            if msg.get("type") == "ping":
+                await websocket.send_text(_json.dumps({"type": "pong"}))
+            elif msg.get("type") == "typing" and msg.get("to_user"):
+                await ws_manager.send_to_user(msg["to_user"], {
+                    "type": "typing", "from_user": user_id, "table_id": msg.get("table_id")
+                })
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        await ws_manager.disconnect(user_id, websocket)
 
 
 app.include_router(api)

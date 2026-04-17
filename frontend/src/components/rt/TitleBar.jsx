@@ -1,8 +1,8 @@
 import React from "react";
-import { Bell, Moon, Sun, LogOut } from "lucide-react";
+import { Bell, Moon, Sun, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function TitleBar({ notificationsCount = 0, onOpenNotifications }) {
+export default function TitleBar({ notificationsCount = 0, onOpenNotifications, onOpenSettings, onToggleSidebar }) {
   const { user, logout } = useAuth();
   const [dark, setDark] = React.useState(() => document.documentElement.classList.contains("dark"));
 
@@ -20,6 +20,9 @@ export default function TitleBar({ notificationsCount = 0, onOpenNotifications }
         <span className="traffic-light tl-min" title="Minimize" />
         <span className="traffic-light tl-max" title="Maximize" />
       </div>
+      <button className="btn btn-ghost mobile-only" onClick={onToggleSidebar} data-testid="hamburger-btn" style={{ marginLeft: 12, padding: 6 }}>
+        <Menu size={16} />
+      </button>
       <div className="title-bar-title">Round Table</div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
         <button className="btn btn-ghost" onClick={toggleTheme} title="Toggle theme" data-testid="theme-toggle-btn" style={{ padding: 6 }}>
@@ -35,8 +38,11 @@ export default function TitleBar({ notificationsCount = 0, onOpenNotifications }
             }}>{notificationsCount}</span>
           )}
         </button>
+        <button className="btn btn-ghost" onClick={onOpenSettings} title="Settings" data-testid="settings-btn" style={{ padding: 6 }}>
+          <SettingsIcon size={16} />
+        </button>
         {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 10, borderLeft: "1px solid var(--border-light)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 10, borderLeft: "1px solid var(--border-light)" }} className="hide-on-mobile">
             <div className="avatar" style={{ width: 26, height: 26, background: user.color || "#007AFF", fontSize: 11 }}>{user.initials}</div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{user.name}</div>
             <button className="btn btn-ghost" title="Sign out" onClick={logout} data-testid="logout-btn" style={{ padding: 4 }}>

@@ -1,0 +1,24 @@
+{
+  "short_name": "Round Table",
+  "name": "Round Table — Where your people gather",
+  "description": "macOS-styled unified collaboration platform. Families, faith communities, project teams, neighborhoods.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#007AFF",
+  "background_color": "#F5F5F7",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='44' fill='%23007AFF'/><circle cx='96' cy='96' r='52' fill='%23FFCC00' stroke='%23FFFFFF' stroke-width='4'/><circle cx='96' cy='96' r='32' fill='none' stroke='%23FFFFFF' stroke-width='2' stroke-dasharray='4 4'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23007AFF'/><circle cx='256' cy='256' r='140' fill='%23FFCC00' stroke='%23FFFFFF' stroke-width='10'/><circle cx='256' cy='256' r='86' fill='none' stroke='%23FFFFFF' stroke-width='4' stroke-dasharray='10 10'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

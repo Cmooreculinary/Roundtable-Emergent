@@ -2,7 +2,7 @@ import React from "react";
 import { Home, Calendar, MessageSquare, Grid3x3, Users, Plus, Radio } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function Sidebar({ tables = [], activeTableId, currentPath, onNav, onSelectTable, onCreateTable }) {
+export default function Sidebar({ tables = [], activeTableId, currentPath, onNav, onSelectTable, onCreateTable, mobileOpen = false, onMobileClose }) {
   const { user } = useAuth();
 
   const navItems = [
@@ -20,7 +20,7 @@ export default function Sidebar({ tables = [], activeTableId, currentPath, onNav
   };
 
   return (
-    <aside className="sidebar" data-testid="sidebar">
+    <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`} data-testid="sidebar">
       <div className="sb-label">Navigation</div>
       {navItems.map((it) => (
         <div

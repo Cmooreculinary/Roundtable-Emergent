@@ -4,6 +4,7 @@ import { Search, Send, Video, Radio } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import EmptyState from "../components/rt/EmptyState";
 import { toast } from "sonner";
+import { useRTEvent } from "../lib/realtime";
 
 export default function MessagesView({ onVideoCall }) {
   const { user } = useAuth();
@@ -27,6 +28,18 @@ export default function MessagesView({ onVideoCall }) {
     setInput("");
     open(active);
   };
+
+  // Live: append messages from the active conversation as they arrive
+  useRTEvent((evt) => {
+    if (evt?.type !== "message" || !active) return;
+    const m = evt.message;
+    if (!m) return;
+    const fromActive = m.from_user === active.id && m.to_user === user?.id;
+    const toActive = m.from_user === user?.id && m.to_user === active.id;
+    if (fromActive || toActive) {
+      setMessages((prev) => prev.some((x) => x.id === m.id) ? prev : [...prev, m]);
+    }
+  }, [active, user]);
 
   const ping = async () => {
     if (!active) return;

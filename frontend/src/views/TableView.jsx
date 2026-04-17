@@ -7,6 +7,7 @@ import HelpTip from "../components/rt/HelpTip";
 import { Share2, UploadCloud, Video, Users, Calendar, Send, FileText, Image, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useRTEvent } from "../lib/realtime";
 
 export default function TableView({ onShare, onInvite, onVideoCall }) {
   const { id } = useParams();
@@ -35,9 +36,24 @@ export default function TableView({ onShare, onInvite, onVideoCall }) {
   useEffect(() => {
     load();
     loadMessages();
-    const int = setInterval(loadMessages, 8000);
+    // Reduced polling — WS handles realtime
+    const int = setInterval(loadMessages, 30000);
     return () => clearInterval(int);
   }, [load, loadMessages]);
+
+  // Live updates
+  useRTEvent((evt) => {
+    if (!evt) return;
+    if (evt.type === "message" && evt.message?.table_id === id) {
+      setMessages((prev) => prev.some((m) => m.id === evt.message.id) ? prev : [...prev, evt.message]);
+    }
+    if (evt.type === "item_added" && evt.table_id === id) {
+      load();
+    }
+    if (evt.type === "presence" || evt.type === "user_updated") {
+      load();
+    }
+  }, [id, load]);
 
   const sendMessage = async () => {
     if (!msgText.trim() || !table) return;
@@ -84,7 +100,7 @@ export default function TableView({ onShare, onInvite, onVideoCall }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", gap: 14 }} className="table-grid-2col">
         {/* Left: Round Table viz */}
         <div className="card" style={{ padding: 0, overflow: "hidden", minHeight: 560, position: "relative" }}>
           <RoundTableViz table={table} />

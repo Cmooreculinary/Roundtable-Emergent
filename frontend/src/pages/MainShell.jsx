@@ -14,13 +14,19 @@ import InvitesView from "../views/InvitesView";
 import NotificationsView from "../views/NotificationsView";
 import MessagesView from "../views/MessagesView";
 import WalkieView from "../views/WalkieView";
+import Settings from "./Settings";
 import CreateTableModal from "../components/modals/CreateTableModal";
 import NewEventModal from "../components/modals/NewEventModal";
 import AddContactModal from "../components/modals/AddContactModal";
 import ShareItemModal from "../components/modals/ShareItemModal";
 import InviteModal from "../components/modals/InviteModal";
 import VideoCallOverlay from "../components/modals/VideoCallOverlay";
+import PingToast from "../components/PingToast";
+import BadgeUnlock from "../components/BadgeUnlock";
 import { api } from "../lib/api";
+import { useWebSocket, useRTEvent } from "../lib/realtime";
+
+const BADGE_THRESHOLDS = [1, 3, 10, 25];
 
 export default function MainShell() {
   const { user } = useAuth();
@@ -29,11 +35,17 @@ export default function MainShell() {
   const [tables, setTables] = useState([]);
   const [activeTableId, setActiveTableId] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [ping, setPing] = useState(null);
+  const [badge, setBadge] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modals, setModals] = useState({
     createTable: false, newEvent: false, addContact: false,
     shareItem: false, invite: false, videoCall: false,
   });
   const [modalProps, setModalProps] = useState({});
+
+  // Activate WebSocket
+  useWebSocket(true);
 
   const openModal = (name, props = {}) => { setModalProps(props); setModals((m) => ({ ...m, [name]: true })); };
   const closeModal = (name) => setModals((m) => ({ ...m, [name]: false }));
@@ -56,8 +68,43 @@ export default function MainShell() {
   useEffect(() => {
     loadTables();
     loadNotifications();
-    const int = setInterval(loadNotifications, 20000);
+    // Less frequent fallback polling now that WS handles live updates
+    const int = setInterval(loadNotifications, 60000);
     return () => clearInterval(int);
+  }, [loadTables, loadNotifications]);
+
+  // Listen for live events
+  useRTEvent((evt) => {
+    if (!evt || !evt.type) return;
+    switch (evt.type) {
+      case "walkie_ping":
+        setPing(evt.notification);
+        // Optimistically prepend to notifications
+        setNotifications((n) => [evt.notification, ...n]);
+        break;
+      case "presence":
+      case "user_updated":
+        // Refresh tables membership view to update online dots
+        loadTables();
+        break;
+      case "item_added":
+        loadTables();
+        break;
+      case "referral_joined": {
+        const total = evt.joined_total || 0;
+        if (BADGE_THRESHOLDS.includes(total)) {
+          setBadge({ tier_count: total, joined_total: total, invitee_name: evt.invitee_name });
+        }
+        loadNotifications();
+        break;
+      }
+      case "message":
+      case "text":
+        loadNotifications();
+        break;
+      default:
+        break;
+    }
   }, [loadTables, loadNotifications]);
 
   // Keyboard: Escape dismisses overlays
@@ -65,11 +112,17 @@ export default function MainShell() {
     const h = (e) => {
       if (e.key === "Escape") {
         setModals({ createTable: false, newEvent: false, addContact: false, shareItem: false, invite: false, videoCall: false });
+        setPing(null);
+        setBadge(null);
+        setSidebarOpen(false);
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+
+  // Close sidebar on navigation (mobile)
+  useEffect(() => { setSidebarOpen(false); }, [loc.pathname]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -78,9 +131,24 @@ export default function MainShell() {
     nav(`/table/${id}`);
   };
 
+  const answerPing = () => {
+    const p = ping;
+    setPing(null);
+    if (p?.from_user) {
+      // Open video call overlay with the pinger
+      const member = (tables.flatMap((t) => t.members || [])).find((m) => m.id === p.from_user);
+      openModal("videoCall", { target: member || { id: p.from_user, name: p.from_name, color: p.from_color, initials: p.from_initials } });
+    }
+  };
+
   return (
     <div className="app-root">
-      <TitleBar notificationsCount={unreadCount} onOpenNotifications={() => nav("/notifications")} />
+      <TitleBar
+        notificationsCount={unreadCount}
+        onOpenNotifications={() => nav("/notifications")}
+        onOpenSettings={() => nav("/settings")}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+      />
       <div className="app-body">
         <Sidebar
           tables={tables}
@@ -89,7 +157,10 @@ export default function MainShell() {
           onNav={(p) => nav(p)}
           onSelectTable={setActiveTable}
           onCreateTable={() => openModal("createTable")}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
         />
+        {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
         <main className="main-content" data-testid="main-content">
           <Routes>
             <Route path="/" element={<Portal tables={tables} notifications={notifications} onOpenInvite={() => openModal("invite", { tables })} onOpenShare={() => openModal("shareItem", { tables })} onCreateTable={() => openModal("createTable")} onNewEvent={() => openModal("newEvent", { tables })} onGoto={nav} />} />
@@ -102,6 +173,7 @@ export default function MainShell() {
             <Route path="/contacts" element={<ContactsView onAdd={() => openModal("addContact")} onInvite={() => openModal("invite", { tables })} />} />
             <Route path="/invites" element={<InvitesView tables={tables} onOpenInvite={() => openModal("invite", { tables })} />} />
             <Route path="/notifications" element={<NotificationsView notifications={notifications} onRefresh={loadNotifications} />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>
@@ -113,6 +185,9 @@ export default function MainShell() {
       {modals.shareItem && <ShareItemModal tables={modalProps.tables || tables} defaultTable={modalProps.defaultTable} onClose={() => closeModal("shareItem")} onShared={() => { closeModal("shareItem"); loadTables(); }} />}
       {modals.invite && <InviteModal tables={modalProps.tables || tables} defaultTable={modalProps.defaultTable} onClose={() => closeModal("invite")} />}
       {modals.videoCall && <VideoCallOverlay target={modalProps.target} onClose={() => closeModal("videoCall")} />}
+
+      <PingToast ping={ping} onAnswer={answerPing} onDismiss={() => setPing(null)} />
+      <BadgeUnlock unlock={badge} onClose={() => setBadge(null)} />
     </div>
   );
 }
