@@ -119,6 +119,15 @@
 - **Configuration**: Reads `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `RESEND_API_KEY` from .env
 - Ready for activation once user provides API keys
 
+### Call History (Enhancement)
+- **`GET /api/calls/history`** — per-user call logs, last 30 days, sorted newest first
+- **`call_logs` MongoDB collection** — persists call_id, type, participants, started_at, ended_at, duration_seconds, status
+- Calls are logged on `call_start`, participants added on `call_join`, finalized with duration on `call_leave` or WebSocket disconnect
+- **CallHistoryView** frontend page at `/call-history` — shows each call with avatar, call type icon (video blue, audio orange), direction (outgoing/incoming/missed), duration, time ago, green redial button
+- **Missed calls** highlighted in red
+- **One-tap redial** opens VideoCallOverlay with the same target
+- Accessible from **Sidebar** (between Walkie Talkie and Apps) and **Dock** (green Calls icon)
+
 ## Backlog
 
 ### Deferred Enhancement (user said "remember, don't build yet")
@@ -146,3 +155,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 3 (Phase 3):** Backend 32/32 (100%), Frontend 100%
 - **Iteration 4 (Phase 4):** Backend 34/34 (100%), Frontend 100%
 - **Iteration 5 (Phase 5):** Backend 23/23 (100%), Frontend 100% — zero regressions
+- **Iteration 6 (Call History):** Backend 20/20 (100%), Frontend 100% — zero regressions
