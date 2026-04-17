@@ -8,6 +8,7 @@ import { Share2, UploadCloud, Video, Users, Calendar, Send, FileText, Image, Mes
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useRTEvent } from "../lib/realtime";
+import SmartSuggestions from "../components/SmartSuggestions";
 
 export default function TableView({ onShare, onInvite, onVideoCall }) {
   const { id } = useParams();
@@ -158,6 +159,8 @@ export default function TableView({ onShare, onInvite, onVideoCall }) {
               </div>
             ))}
           </div>
+
+          <SmartSuggestions tableId={id} onAdded={load} />
 
           <div className="card" style={{ padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>

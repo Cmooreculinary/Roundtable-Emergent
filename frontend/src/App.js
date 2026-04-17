@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
 import MainShell from "./pages/MainShell";
+import JoinByCode from "./pages/JoinByCode";
 import { Toaster } from "sonner";
 import "./App.css";
 
@@ -46,13 +47,32 @@ const OnboardGate = ({ children }) => {
   return children;
 };
 
+// After login/register, consume pending invite code from sessionStorage
+function PendingInviteHandler() {
+  const { user } = useAuth();
+  const loc = useLocation();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!user || user === false) return;
+    if (!user.onboarded) return;
+    const code = sessionStorage.getItem("rt-pending-code");
+    if (!code) return;
+    if (loc.pathname.startsWith("/join/")) return;
+    sessionStorage.removeItem("rt-pending-code");
+    nav(`/join/${code}`, { replace: true });
+  }, [user, loc.pathname, nav]);
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <ThemeGate>
         <BrowserRouter>
           <Toaster position="top-right" theme="system" richColors />
+          <PendingInviteHandler />
           <Routes>
+            <Route path="/join/:code" element={<JoinByCode />} />
             <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
             <Route path="/register" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
             <Route path="/welcome" element={<OnboardGate><Onboarding /></OnboardGate>} />

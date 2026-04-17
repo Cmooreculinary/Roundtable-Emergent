@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { X, UploadCloud, Image, FileText, Video, Music, Link2, StickyNote, Sheet, Presentation } from "lucide-react";
+import { X, UploadCloud, Image, FileText, Video, Music, Link2, StickyNote, Sheet, Presentation, HeartHandshake, Sparkles } from "lucide-react";
 import { api, API, formatApiErrorDetail } from "../../lib/api";
 import { toast } from "sonner";
 
@@ -12,6 +12,8 @@ const TYPES = [
   { key: "note", label: "Note", icon: <StickyNote size={18} />, color: "#FFCC00" },
   { key: "spreadsheet", label: "Sheet", icon: <Sheet size={18} />, color: "#FF9500" },
   { key: "presentation", label: "Slides", icon: <Presentation size={18} />, color: "#FF2D55" },
+  { key: "prayer", label: "Prayer", icon: <HeartHandshake size={18} />, color: "#AF52DE" },
+  { key: "intention", label: "Intention", icon: <Sparkles size={18} />, color: "#FFCC00" },
 ];
 
 export default function ShareItemModal({ tables = [], defaultTable, onClose, onShared }) {
@@ -25,9 +27,9 @@ export default function ShareItemModal({ tables = [], defaultTable, onClose, onS
 
   const submit = async () => {
     if (!tableId) return toast.error("Pick a table");
-    if (type === "note") {
-      if (!name.trim()) return toast.error("Give this note a name");
-      await api.post(`/tables/${tableId}/items`, { type: "note", name: name.trim(), url: note || undefined });
+    if (type === "note" || type === "prayer" || type === "intention") {
+      if (!name.trim()) return toast.error("Give this a name");
+      await api.post(`/tables/${tableId}/items`, { type, name: name.trim(), url: note || undefined });
       toast.success("Shared");
       onShared?.();
       return;
@@ -113,7 +115,14 @@ export default function ShareItemModal({ tables = [], defaultTable, onClose, onS
             </>
           )}
 
-          {type !== "link" && type !== "note" && (
+          {(type === "prayer" || type === "intention") && (
+            <>
+              <label style={lbl}>{type === "prayer" ? "Prayer Request" : "Intention"}</label>
+              <textarea className="input" rows={5} value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === "prayer" ? "What would you like the group to pray for?" : "What is your intention?"} data-testid="share-prayer" style={{ margin: "6px 0 10px", fontFamily: "inherit", resize: "vertical" }} />
+            </>
+          )}
+
+          {type !== "link" && type !== "note" && type !== "prayer" && type !== "intention" && (
             <div
               onDragOver={(e) => { e.preventDefault(); }}
               onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.[0] && fileRef.current) { fileRef.current.files = e.dataTransfer.files; } }}

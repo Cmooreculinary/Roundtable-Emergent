@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Image, Video, Music, Link2, StickyNote, Sheet, Presentation, Armchair } from "lucide-react";
+import { FileText, Image, Video, Music, Link2, StickyNote, Sheet, Presentation, Armchair, HeartHandshake, Sparkles } from "lucide-react";
 
 const ITEM_ICONS = {
   photo: <Image size={20} />,
@@ -10,6 +10,8 @@ const ITEM_ICONS = {
   note: <StickyNote size={20} />,
   spreadsheet: <Sheet size={20} />,
   presentation: <Presentation size={20} />,
+  prayer: <HeartHandshake size={20} />,
+  intention: <Sparkles size={20} />,
 };
 
 const TYPE_COLOR = {
@@ -21,6 +23,8 @@ const TYPE_COLOR = {
   note: "#FFCC00",
   spreadsheet: "#FF9500",
   presentation: "#FF2D55",
+  prayer: "#AF52DE",
+  intention: "#FFCC00",
 };
 
 // Radial position helper

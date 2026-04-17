@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Trophy, X } from "lucide-react";
+import { Trophy, X, Share2, Copy } from "lucide-react";
+import { api } from "../lib/api";
+import { toast } from "sonner";
 
 const TIERS = [
   { count: 1, name: "Newcomer", color: "#5AC8FA" },
@@ -9,14 +11,50 @@ const TIERS = [
 ];
 
 export default function BadgeUnlock({ unlock, onClose }) {
+  const [sharing, setSharing] = useState(false);
+  const [shareCode, setShareCode] = useState("");
+
   useEffect(() => {
-    if (!unlock) return;
-    const t = setTimeout(onClose, 6500);
+    if (!unlock) { setShareCode(""); return; }
+    const t = setTimeout(onClose, 12000);
     return () => clearTimeout(t);
   }, [unlock, onClose]);
 
   if (!unlock) return null;
   const tier = TIERS.find((t) => t.count === unlock.tier_count) || TIERS[0];
+
+  const shareText = `I just earned the "${tier.name}" badge on Round Table — where my people gather. Come join us!`;
+  const appOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const generateShare = async () => {
+    setSharing(true);
+    try {
+      // Use the user's first table for the share invite
+      const { data: tables } = await api.get("/tables");
+      if (!tables?.length) {
+        toast.error("Create a table first");
+        setSharing(false); return;
+      }
+      const { data: inv } = await api.post("/invites", { table_id: tables[0].id, max_uses: 50, expires_in_days: 30 });
+      setShareCode(inv.code);
+      const url = `${appOrigin}/join/${inv.code}`;
+      const body = `${shareText} ${url}`;
+      if (navigator.share) {
+        try { await navigator.share({ title: "Round Table", text: shareText, url }); }
+        catch { /* user cancelled */ }
+      } else {
+        try { await navigator.clipboard.writeText(body); toast.success("Invite copied — paste it anywhere"); }
+        catch { toast.success("Invite ready below"); }
+      }
+    } catch {
+      toast.error("Couldn't create share link");
+    } finally { setSharing(false); }
+  };
+
+  const copyLink = () => {
+    const url = `${appOrigin}/join/${shareCode}`;
+    navigator.clipboard.writeText(`${shareText} ${url}`).then(() => toast.success("Copied"));
+  };
 
   return (
     <div style={{
@@ -25,7 +63,7 @@ export default function BadgeUnlock({ unlock, onClose }) {
     }} data-testid="badge-unlock">
       <div style={{
         background: "var(--bg-elevated)", border: "1px solid var(--border-light)",
-        borderRadius: 20, padding: 28, width: 360, textAlign: "center",
+        borderRadius: 20, padding: 28, width: 400, textAlign: "center",
         boxShadow: "var(--shadow-xl)",
         position: "relative",
       }}>
@@ -47,8 +85,25 @@ export default function BadgeUnlock({ unlock, onClose }) {
         </div>
         <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, letterSpacing: "-0.02em" }}>{tier.name}</div>
         <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.5 }}>
-          {unlock.invitee_name} just joined using your invite. You've now welcomed <b>{unlock.joined_total}</b> {unlock.joined_total === 1 ? "person" : "people"} to the table.
+          {unlock.invitee_name} just joined. You've now welcomed <b>{unlock.joined_total}</b> {unlock.joined_total === 1 ? "person" : "people"} to the table.
         </div>
+
+        {!shareCode ? (
+          <button className="btn btn-primary" onClick={generateShare} disabled={sharing} data-testid="badge-share-btn" style={{ width: "100%", marginTop: 18, padding: "10px 14px", fontSize: 14, background: tier.color }}>
+            <Share2 size={14} /> {sharing ? "Preparing…" : "Share My Badge & Invite More"}
+          </button>
+        ) : (
+          <div style={{ marginTop: 18, padding: 12, background: "var(--bg-tertiary)", borderRadius: 12, textAlign: "left" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: 0.5 }}>Your share link</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <code style={{ flex: 1, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appOrigin}/join/{shareCode}</code>
+              <button className="btn btn-secondary" onClick={copyLink} data-testid="badge-copy-link" style={{ padding: "4px 8px" }}><Copy size={12} /></button>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+              Paste it into a text, email, or group chat. One tap to join — no signup friction.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

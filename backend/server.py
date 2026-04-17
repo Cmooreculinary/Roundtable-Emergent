@@ -300,16 +300,18 @@ class TableIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     color: str = "#007AFF"
     active: bool = False
+    purpose: Optional[Literal["family", "bible_study", "community", "friends", "work", "other"]] = "other"
 
 
 class TableUpdateIn(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     color: Optional[str] = None
     active: Optional[bool] = None
+    purpose: Optional[Literal["family", "bible_study", "community", "friends", "work", "other"]] = None
 
 
 class SharedItemIn(BaseModel):
-    type: Literal["photo", "document", "video", "audio", "link", "note", "spreadsheet", "presentation"]
+    type: Literal["photo", "document", "video", "audio", "link", "note", "spreadsheet", "presentation", "prayer", "intention"]
     name: str = Field(min_length=1, max_length=200)
     url: Optional[str] = None
     thumbnail_url: Optional[str] = None
@@ -562,6 +564,7 @@ async def create_table(payload: TableIn, user: dict = Depends(get_current_user))
         "name": payload.name.strip(),
         "color": payload.color,
         "active": bool(payload.active),
+        "purpose": payload.purpose or "other",
         "created_by": user["id"],
         "created_at": now_iso(),
         "last_activity": now_iso(),
@@ -939,6 +942,40 @@ async def walkie_ping(payload: WalkiePingIn, user: dict = Depends(get_current_us
 
 
 # ---------- Invites ----------
+@api.get("/invites/preview/{code}")
+async def preview_invite(code: str):
+    """Public endpoint - lets anyone view a table preview via invite code."""
+    inv = await db.invites.find_one({"code": code.upper().strip()}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if inv.get("expires_at") and inv["expires_at"] < now_iso():
+        raise HTTPException(status_code=410, detail="Invite expired")
+    if inv["uses"] >= inv["max_uses"]:
+        raise HTTPException(status_code=410, detail="Invite is used up")
+    t = await db.tables.find_one({"id": inv["table_id"]}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="Table not found")
+    inviter = await db.users.find_one({"id": inv["created_by"]}, {"_id": 0})
+    member_count = await db.table_members.count_documents({"table_id": inv["table_id"]})
+    return {
+        "table": {
+            "id": t["id"],
+            "name": t["name"],
+            "color": t["color"],
+            "active": bool(t.get("active")),
+            "purpose": t.get("purpose", "other"),
+            "member_count": member_count,
+        },
+        "inviter": {
+            "name": inviter["name"] if inviter else "Someone",
+            "initials": inviter.get("initials") if inviter else "?",
+            "color": inviter.get("color") if inviter else "#8E8E93",
+        },
+        "uses": inv["uses"],
+        "max_uses": inv["max_uses"],
+    }
+
+
 @api.get("/invites")
 async def list_invites(table_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     q: dict = {"created_by": user["id"]}
@@ -1092,6 +1129,91 @@ async def referral_leaderboard(user: dict = Depends(get_current_user)):
 @api.get("/")
 async def root():
     return {"service": "Round Table API", "status": "ok"}
+
+
+# ---------- AI Smart Suggestions ----------
+PURPOSE_GUIDANCE = {
+    "family": "This is a family table - suggest gatherings like shared meals, birthdays, family game nights, movie nights, or household planning.",
+    "bible_study": "This is a Bible study / faith community table - suggest weekly study meetings, prayer gatherings, service projects, fellowship meals, or scripture reading plans.",
+    "community": "This is a neighborhood / community table - suggest block parties, help projects, potlucks, clean-up days, or local gatherings.",
+    "friends": "This is a friend group table - suggest hangouts, game nights, group trips, dinners, or shared celebrations.",
+    "work": "This is a work / project table - suggest syncs, retros, deadlines, kickoffs, or planning sessions.",
+    "other": "Suggest helpful upcoming gatherings or activities appropriate for this group.",
+}
+
+
+@api.post("/tables/{table_id}/suggest-events")
+async def suggest_events(table_id: str, user: dict = Depends(get_current_user)):
+    await ensure_table_member(table_id, user["id"])
+    t = await db.tables.find_one({"id": table_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    if not EMERGENT_KEY:
+        return {"suggestions": [], "error": "AI key not configured"}
+
+    existing = await db.events.find({"table_id": table_id}, {"_id": 0}).sort("date", -1).limit(10).to_list(10)
+    existing_summary = "\n".join([f"- {e['title']} on {e['date']}" for e in existing]) or "(none yet)"
+    purpose = t.get("purpose", "other")
+    guidance = PURPOSE_GUIDANCE.get(purpose, PURPOSE_GUIDANCE["other"])
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    system = (
+        "You are the 'Round Table' scheduling helper. You propose warm, concrete, low-pressure event ideas for real-world groups. "
+        "Return strictly valid JSON only — no commentary. Format: "
+        '{"suggestions":[{"title":"","date":"YYYY-MM-DD","time":"HH:MM","description":"","reason":""}]}'
+        " Exactly 3 suggestions. Dates must be in the future (after today). Use 24-hour time."
+    )
+    prompt = (
+        f"Today is {today}.\n"
+        f"Table name: {t['name']}\n"
+        f"Table purpose: {purpose} — {guidance}\n"
+        f"Recent events on this table:\n{existing_summary}\n\n"
+        "Suggest 3 upcoming events that would genuinely serve this group. Keep titles short (2-6 words), "
+        "descriptions one sentence, and 'reason' one short phrase on why it fits."
+    )
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(
+            api_key=EMERGENT_KEY,
+            session_id=f"rt-suggest-{table_id}",
+            system_message=system,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        response = await chat.send_message(UserMessage(text=prompt))
+        raw = str(response).strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:].lstrip()
+        import json as _j
+        data = _j.loads(raw)
+        suggestions = data.get("suggestions", [])
+        # Defensive validation
+        clean = []
+        for s in suggestions[:3]:
+            if not isinstance(s, dict):
+                continue
+            title = str(s.get("title", "")).strip()[:100]
+            date = str(s.get("date", "")).strip()
+            time = str(s.get("time", "12:00")).strip()
+            if not title or not date:
+                continue
+            if not (len(date) == 10 and date[4] == "-" and date[7] == "-"):
+                continue
+            clean.append({
+                "title": title,
+                "date": date,
+                "time": time if len(time) == 5 else "12:00",
+                "description": str(s.get("description", ""))[:280],
+                "reason": str(s.get("reason", ""))[:120],
+                "color": t.get("color", "#007AFF"),
+            })
+        return {"suggestions": clean, "purpose": purpose}
+    except Exception as e:
+        logger.warning(f"AI suggest failed for table {table_id}: {e}")
+        return {"suggestions": [], "error": "suggestion temporarily unavailable"}
 
 
 # ---------- WebSocket ----------
