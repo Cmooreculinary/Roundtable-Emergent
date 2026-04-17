@@ -631,6 +631,59 @@ async def startup():
         logger.info("Admin password updated from .env.")
     # Storage
     init_storage()
+    # Start event reminder background task
+    asyncio.create_task(_event_reminder_loop())
+
+
+async def _event_reminder_loop():
+    """Background task: check every 10 minutes for events starting within 1 hour, send SMS reminders."""
+    while True:
+        try:
+            await asyncio.sleep(600)  # 10 minutes
+            await _send_event_reminders()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning(f"Event reminder loop error: {e}")
+
+
+async def _send_event_reminders():
+    """Find events starting within 45-75 minutes and SMS offline members with auto_sms."""
+    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER):
+        return
+    now = datetime.now(timezone.utc)
+    today = now.date().isoformat()
+    # Get all events for today
+    events = await db.events.find({"date": today}, {"_id": 0}).to_list(500)
+    for ev in events:
+        try:
+            event_time = datetime.fromisoformat(f"{ev['date']}T{ev.get('time', '12:00')}:00+00:00")
+        except Exception:
+            continue
+        delta = (event_time - now).total_seconds()
+        # Between 45 and 75 minutes from now (so we catch it in one 10-min window)
+        if 2700 <= delta <= 4500:
+            # Check if we already sent a reminder for this event
+            reminder_key = f"reminder_{ev['id']}_{today}"
+            existing_reminder = await db.notifications.find_one({"id": reminder_key})
+            if existing_reminder:
+                continue
+            # Mark as reminded
+            await db.notifications.insert_one({"id": reminder_key, "type": "reminder_sent", "created_at": now_iso()})
+
+            table_id = ev.get("table_id")
+            if not table_id:
+                continue
+            table = await db.tables.find_one({"id": table_id}, {"_id": 0})
+            table_name = table["name"] if table else "your table"
+            members = await db.table_members.find({"table_id": table_id}, {"_id": 0}).to_list(500)
+            time_str = ev.get("time", "12:00")
+            for m in members:
+                await send_auto_sms_if_offline(
+                    m["user_id"],
+                    f"Reminder: \"{ev['title']}\" at {table_name} starts at {time_str}. Don't miss it!"
+                )
+            logger.info(f"Event reminder sent for '{ev['title']}' at {table_name}")
 
 
 @app.on_event("shutdown")

@@ -18,20 +18,20 @@
   --tl-min: #FFBD2E;
   --tl-max: #28C840;
 
-  /* Light mode surfaces */
-  --bg-primary: #F5F5F7;
-  --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F2F2F7;
-  --bg-elevated: #FFFFFF;
-  --bg-sidebar: #EFEFF4;
-  --bg-titlebar: linear-gradient(180deg, #FAFAFA 0%, #F0F0F0 100%);
-  --border-color: #D1D1D6;
-  --border-light: #E5E5EA;
+  /* Light mode surfaces — soft golden warmth */
+  --bg-primary: #FEFCF3;
+  --bg-secondary: #FFFDF7;
+  --bg-tertiary: #FBF8F0;
+  --bg-elevated: #FFFEF9;
+  --bg-sidebar: #FAF7EE;
+  --bg-titlebar: linear-gradient(180deg, #FEFCF5 0%, #F8F5EC 100%);
+  --border-color: #E5DFD1;
+  --border-light: #EDE8DA;
   --text-primary: #1D1D1F;
   --text-secondary: #6E6E73;
   --text-tertiary: #A1A1A6;
-  --glass: rgba(255,255,255,0.7);
-  --glass-stroke: rgba(255,255,255,0.6);
+  --glass: rgba(254,252,243,0.75);
+  --glass-stroke: rgba(255,253,247,0.6);
   --wood: linear-gradient(135deg, #c9a274 0%, #a47a4c 40%, #7a4f2b 100%);
   --wood-dormant: linear-gradient(135deg, #b9b1a6 0%, #8e877d 60%, #5f5953 100%);
 

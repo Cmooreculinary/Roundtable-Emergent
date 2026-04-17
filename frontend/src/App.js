@@ -12,7 +12,13 @@ import "./App.css";
 const ThemeGate = ({ children }) => {
   useEffect(() => {
     const saved = localStorage.getItem("rt-theme");
-    if (saved === "dark") document.documentElement.classList.add("dark");
+    // Dark mode is the default
+    if (saved === "light") {
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+      if (!saved) localStorage.setItem("rt-theme", "dark");
+    }
   }, []);
   return children;
 };
