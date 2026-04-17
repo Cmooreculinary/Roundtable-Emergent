@@ -1,0 +1,174 @@
+{
+  "project_name": "Round Table",
+  "theme": "macOS Hybrid (Light & Dark)",
+  "archetype": "Apple Glassmorphism & High Contrast",
+  "design_principles": [
+    "Pixel-perfect macOS feel.",
+    "Data isolation: Each table holds all its info; no bleeding across tables.",
+    "If you can sit at a table, you can collaborate.",
+    "Native macOS fluid animations and glassmorphic surfaces."
+  ],
+  "colors": {
+    "system": {
+      "blue": "#007AFF",
+      "green": "#34C759",
+      "orange": "#FF9500",
+      "red": "#FF3B30",
+      "purple": "#AF52DE",
+      "pink": "#FF2D55",
+      "yellow": "#FFCC00",
+      "gray": "#8E8E93",
+      "teal": "#5AC8FA"
+    },
+    "traffic_lights": {
+      "close": "#FF5F57",
+      "minimize": "#FFBD2E",
+      "maximize": "#28C840"
+    },
+    "light_mode": {
+      "bg_primary": "#F5F5F7",
+      "bg_secondary": "#FFFFFF",
+      "bg_tertiary": "#F2F2F7",
+      "text_primary": "#000000",
+      "text_secondary": "#3C3C43",
+      "text_tertiary": "#8A8A8E",
+      "border": "#E5E5EA",
+      "glass": "rgba(255, 255, 255, 0.7)"
+    },
+    "dark_mode": {
+      "bg_primary": "#1C1C1E",
+      "bg_secondary": "#2C2C2E",
+      "bg_tertiary": "#3A3A3C",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#EBEBF5",
+      "text_tertiary": "rgba(235, 235, 245, 0.3)",
+      "border": "#38383A",
+      "glass": "rgba(44, 44, 46, 0.6)"
+    }
+  },
+  "typography": {
+    "font_family": "SF Pro Display, SF Pro Text, -apple-system, BlinkMacSystemFont, sans-serif",
+    "scales": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base",
+      "small": "text-sm",
+      "tiny": "text-xs font-medium"
+    }
+  },
+  "shadows": {
+    "sm": "0 1px 3px rgba(0,0,0,0.06)",
+    "md": "0 4px 12px rgba(0,0,0,0.08)",
+    "lg": "0 12px 40px rgba(0,0,0,0.12)",
+    "xl": "0 20px 60px rgba(0,0,0,0.15)"
+  },
+  "border_radii": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "20px"
+  },
+  "animations": {
+    "table_live_glow": "3s ease-in-out infinite",
+    "ring_rotate": "12s linear infinite",
+    "table_shimmer": "4s linear infinite",
+    "glow_ring_pulse": "2.5s ease-in-out infinite",
+    "avatar_active_glow": "2s ease-in-out infinite",
+    "item_float": "3s ease-in-out infinite",
+    "dot_pulse": "2s ease-in-out infinite",
+    "badge_dot_pulse": "1.5s ease-in-out infinite",
+    "status_breathe": "2s ease-in-out infinite",
+    "dock_hover": "spring(stiffness 300, damping 20)"
+  },
+  "layout_blueprints": {
+    "title_bar": {
+      "height": "52px",
+      "components": "Traffic lights (close/min/max) left aligned with gap-2, centered title font-semibold, right nav/actions."
+    },
+    "sidebar": {
+      "width": "240px",
+      "bg": "bg-tertiary",
+      "sections": "Home, Portal, Calendar, Messages, Apps, Contacts + 'Round Tables' section (live/dormant states with indicators)."
+    },
+    "dock": {
+      "position": "bottom-center",
+      "styling": "glassmorphism backdrop-blur-[30px], p-2 rounded-xl border border-white/20 dark:border-white/10",
+      "tiles": "48px height/width rounded-lg, hover:scale-125 hover:-translate-y-4 transition-all spring, with unread badges."
+    },
+    "round_table_visualization": {
+      "concept": "Circular wooden table, radial member seats, shared items on surface.",
+      "live_state": "glow ring (table_live_glow), rotating members (ring_rotate), active avatars glow (avatar_active_glow).",
+      "dormant_state": "desaturated colors, dashed border ring, no glowing animations.",
+      "items": "Floating documents/files on table (item_float)."
+    },
+    "portal_dashboard": {
+      "grid": "Bento-style grid. 6 Widgets: Today's Schedule, Recent on Tables, My Tables, Quick Actions, Invites & Referrals, Notifications.",
+      "styling": "Cards with bg-secondary, rounded-lg, shadow-md, 1px border."
+    },
+    "communications_hub": {
+      "tabs": "Email (inbox/sent/starred, compose, read, star), Texts (iMessage-style bubbles, thread sidebar), Chat (preview), Walkie (online members)",
+      "layout": "Two-pane layout typical of macOS Mail/Messages (Left list 300px, Right detail)."
+    },
+    "calendar": {
+      "layout": "Monthly grid, color-coded events per table. Table context isolation applies."
+    },
+    "app_launcher": {
+      "layout": "Grid of 24 apps, 4x6 or 6x4 depending on width. Icon + text below."
+    },
+    "contacts": {
+      "layout": "Split view: On-Round-Table vs Not-On, with invite buttons."
+    },
+    "invite_referral_system": {
+      "components": "Invite codes generator, share button, usage tracking list, Referral tracking with badge progression + top-3 leaderboard."
+    },
+    "walkie_talkie": {
+      "panel": "Floating panel or sidebar section, select target, push-to-talk button (simulated)."
+    },
+    "video_call_overlay": {
+      "styling": "Floating glassmorphic modal overlay, PiP supported."
+    },
+    "file_sharing_modal": {
+      "layout": "Drag-drop zone, 8 quick-share types grid."
+    },
+    "ping_notification": {
+      "styling": "Slide-in toast from top-right. Includes answer/dismiss actions."
+    },
+    "onboarding_wizard": {
+      "steps": ["Welcome", "Profile Setup", "Create First Table", "Invite Members", "Quick Tour"],
+      "layout": "Centered glassmorphic card on an abstract gradient background. Step indicators."
+    }
+  },
+  "component_guidelines": {
+    "glassmorphism": "Use backdrop-blur-[30px] bg-white/70 (light) or bg-black/60 (dark) for floating navs, modals, and dock. MUST include 1px delicate inner stroke.",
+    "buttons": "Rounded-md or rounded-lg, System Blue #007AFF for primary actions. Text color pure white.",
+    "tooltips": "Contextual help tooltips on first-time visit for every major section.",
+    "empty_states": "Meaningful illustrations/icons with CTAs for every view when no data is present.",
+    "data_testids": "All interactive elements MUST include data-testid attributes."
+  },
+  "media": {
+    "wallpapers": {
+      "abstract_gradient": "https://images.unsplash.com/photo-1687618053208-28a67cf7bddb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdyYWRpZW50JTIwd2FsbHBhcGVyfGVufDB8fHx8MTc3NjQzMTY0Mnww&ixlib=rb-4.1.0&q=85"
+    },
+    "textures": {
+      "wood_table": "https://images.unsplash.com/photo-1552902870-3a55808841ec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHx3b29kJTIwZ3JhaW4lMjB0ZXh0dXJlJTIwZmxhdHxlbnwwfHx8fDE3NzY0MzE2NDJ8MA&ixlib=rb-4.1.0&q=85"
+    },
+    "avatars": [
+      "https://images.unsplash.com/photo-1655249493799-9cee4fe983bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NjQzMTY0Mnww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1769636929388-99eff95d3bf1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NjQzMTY0Mnww&ixlib=rb-4.1.0&q=85"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the dark/light mode surface colors and macOS system colors.",
+    "Implement the left sidebar (240px), top title bar (52px), and bottom dock with exact blur settings.",
+    "For the Round Table view, enforce absolute data isolation. Users only see data (messages, calendar, files) scoped to the active table.",
+    "All interactive elements must use the exact macOS shadows and border radii.",
+    "Integrate the 9 requested animation keyframes (table-live-glow, ring-rotate, etc.) and apply them perfectly in the Round Table component.",
+    "Build the Communications Hub with 4 explicit tabs (Email, Texts, Chat, Walkie). Simulate Walkie & Video Call functionality with realistic UI mockups.",
+    "Ensure 'Traffic Lights' in the title bar use the exact hex codes provided (#FF5F57, #FFBD2E, #28C840).",
+    "Persist dark/light mode toggle in localStorage.",
+    "Use Phosphor icons or Heroicons for App Launcher and Dock to keep a premium macOS aesthetic.",
+    "Include data-testid on all buttons, links, and forms for automated testing."
+  ]
+}
