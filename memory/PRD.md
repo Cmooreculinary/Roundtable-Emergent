@@ -130,6 +130,25 @@ Auto-seed when creating a table based on purpose picker:
 - **Other:** nothing (opt-out default).
 
 ## Phase 5 — Backlog
+
+### P0 (tackle first in next fork)
+- **Real WebRTC walkie + video** — signaling already runs through Phase 2 WS layer (`/api/ws`). Need peer connection setup, media stream capture, SDP exchange, ICE candidates, optional TURN server fallback.
+- **Web Push notifications** — need VAPID keys (generate server-side), extend existing service-worker.js with `push` event listener, subscription endpoint to register users, push trigger hooks on walkie_ping + message events.
+
+### P1 (if credits allow)
+- **Email bridge via Resend** — notify offline users of prayers / pings / messages they'd miss.
+- **SMS bridge via Twilio** — same but for users who prefer texts (big for grandparents, non-tech family members).
+
+### Deferred enhancement (explicitly noted by user, hold until requested)
+- **Public "We're praying for X" embeddable widget** — church/community websites can embed a tiny Round Table badge ("Our group is praying for 12 requests this week — join us") linking to a public `/join/:code` landing. Backend: new `/api/tables/{id}/public-stats` endpoint returning aggregate counts with no PII. Frontend: public route `/widget/:code` returning iframe-friendly HTML. Powerful outbound growth loop for the orphanage mission — user asked me to **remember this and NOT build it until they ask**.
+
+### P2 (next-next window)
+- Prayer reply threads (comments on prayers within the Prayer Wall)
+- Table roles management UI
+- Table-purpose expanded templates (Bible study with reading plan track, family with birthday tracker, etc.)
+- Activity feed per table
+- Notification preferences per channel
+- End-to-end encryption for messages
 ### P0
 - Real WebRTC walkie + video (signaling already runs through WS layer now)
 - Web Push notifications (browser-level alerts when tab is closed) — needs VAPID keys
