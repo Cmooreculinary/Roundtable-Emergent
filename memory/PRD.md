@@ -112,12 +112,15 @@
 - **Frontend**: `push.js` subscription manager, auto-subscribe on login if permission granted, Settings page toggle
 - **Dead subscription cleanup**: 404/410 responses auto-remove stale endpoints
 
-### SMS/Email Bridges (Infrastructure Ready)
-- **`GET /api/bridges/status`** — returns which bridges are configured
-- **`POST /api/bridges/sms`** — sends SMS via Twilio (returns 503 until keys provided)
-- **`POST /api/bridges/email`** — sends email via Resend (returns 503 until keys provided)
-- **Configuration**: Reads `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `RESEND_API_KEY` from .env
-- Ready for activation once user provides API keys
+### SMS/Email Bridges
+- **SMS Bridge (LIVE)**: Twilio integration active with real credentials
+  - `POST /api/bridges/sms` sends real SMS via Twilio
+  - Twilio error messages surfaced to the user (e.g., "Invalid To Phone Number")
+  - Trial account limitation: can only send to verified numbers
+  - SMS compose form in Contacts page for off-app contacts with phone numbers
+- **Email Bridge (COMING SOON)**: Resend integration infrastructure ready, returns 503 until API key provided
+  - "COMING SOON" orange badge displayed on Contacts page
+- **`GET /api/bridges/status`** — returns which bridges are configured ({sms_configured: true, email_configured: false})
 
 ### Call History (Enhancement)
 - **`GET /api/calls/history`** — per-user call logs, last 30 days, sorted newest first
@@ -156,3 +159,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 4 (Phase 4):** Backend 34/34 (100%), Frontend 100%
 - **Iteration 5 (Phase 5):** Backend 23/23 (100%), Frontend 100% — zero regressions
 - **Iteration 6 (Call History):** Backend 20/20 (100%), Frontend 100% — zero regressions
+- **Iteration 7 (Twilio SMS Bridge):** Backend 9/9 (100%), Frontend 100% — zero regressions
