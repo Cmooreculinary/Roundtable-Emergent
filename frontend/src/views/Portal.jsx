@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import EmptyState from "../components/rt/EmptyState";
 import HelpTip from "../components/rt/HelpTip";
-import { Calendar, FileText, Users, Zap, Share2, Bell, Plus, UploadCloud, Mail, MessageSquare, Radio, ChevronRight, Award, Inbox, Send, Star } from "lucide-react";
+import { Calendar, FileText, Users, Zap, Share2, Bell, Plus, UploadCloud, Mail, MessageSquare, Radio, ChevronRight, Award, Inbox, Send, Star, AlertCircle, X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 
@@ -12,6 +12,7 @@ export default function Portal({ tables, notifications, onOpenInvite, onOpenShar
   const [referrals, setReferrals] = useState({ invited: 0, joined: 0, badge: "No badge yet" });
   const [leaderboard, setLeaderboard] = useState([]);
   const [commsTab, setCommsTab] = useState("email");
+  const [dismissedReminder, setDismissedReminder] = useState(false);
 
   useEffect(() => {
     api.get("/events").then((r) => setEvents(r.data || [])).catch(() => {});
@@ -41,6 +42,9 @@ export default function Portal({ tables, notifications, onOpenInvite, onOpenShar
           {liveTables.length > 0 ? `${liveTables.length} table${liveTables.length !== 1 ? "s" : ""} live right now.` : "No tables are live. Start one to gather your people."}
         </p>
       </div>
+
+      {/* Setup reminder banner */}
+      <SetupReminder user={user} onGoto={onGoto} dismissed={dismissedReminder} onDismiss={() => setDismissedReminder(true)} />
 
       {/* Communications Hub */}
       <CommsHub />
@@ -241,4 +245,38 @@ function CommsHub() {
       </div>
     </div>
   );
+}
+
+
+function SetupReminder({ user, onGoto, dismissed, onDismiss }) {
+  if (dismissed) return null;
+  try {
+    const raw = localStorage.getItem("rt-onboard-completed");
+    if (!raw) return null;
+    const completed = JSON.parse(raw);
+    const missing = [];
+    if (!completed.avatar && !user?.avatar_url) missing.push({ label: "Choose an avatar", route: "/settings" });
+    if (!completed.phone && !user?.phone) missing.push({ label: "Add your phone number", route: "/settings" });
+    if (!completed.push) missing.push({ label: "Enable push notifications", route: "/settings" });
+    if (!completed.table) missing.push({ label: "Create your first table", route: null });
+    if (missing.length === 0) return null;
+    return (
+      <div className="card" style={{ padding: "12px 16px", marginBottom: 14, borderLeft: "4px solid var(--mac-orange)", display: "flex", alignItems: "flex-start", gap: 10 }} data-testid="setup-reminder-banner">
+        <AlertCircle size={18} color="var(--mac-orange)" style={{ flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Finish setting up your Round Table</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {missing.map((m) => (
+              <button key={m.label} className="btn btn-secondary" onClick={() => m.route ? onGoto(m.route) : null} style={{ fontSize: 11, padding: "3px 10px" }} data-testid={`setup-reminder-${m.label.replace(/\s/g, "-").toLowerCase()}`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button className="btn btn-ghost" onClick={onDismiss} style={{ padding: 2 }} data-testid="setup-reminder-dismiss"><X size={14} /></button>
+      </div>
+    );
+  } catch {
+    return null;
+  }
 }

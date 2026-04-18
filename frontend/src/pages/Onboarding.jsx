@@ -1,14 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { Armchair, Users, Sparkles, Link2, Mail, MessageSquare, Check, Copy } from "lucide-react";
+import { Armchair, Users, Sparkles, Link2, Mail, MessageSquare, Check, Copy, Phone, Bell, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { subscribeToPush, isPushSupported, getPushPermission } from "../lib/push";
+import AvatarPicker from "../components/AvatarPicker";
 
 const COLORS = [
   "#007AFF", "#34C759", "#FF9500", "#FF3B30",
   "#AF52DE", "#FF2D55", "#FFCC00", "#5AC8FA",
 ];
+
+const TOTAL_STEPS = 6;
 
 export default function Onboarding() {
   const { user, updateMe, refresh } = useAuth();
@@ -16,25 +20,59 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState(user?.name || "");
   const [color, setColor] = useState(user?.color || "#007AFF");
-  const [status, setStatus] = useState(user?.status || "online");
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || null);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [autoSms, setAutoSms] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [tableName, setTableName] = useState("");
   const [tableColor, setTableColor] = useState("#34C759");
   const [tableActive, setTableActive] = useState(true);
   const [createdTable, setCreatedTable] = useState(null);
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [smsConfigured, setSmsConfigured] = useState(false);
+
+  useEffect(() => {
+    setPushEnabled(getPushPermission() === "granted");
+    api.get("/bridges/status").then((r) => setSmsConfigured(r.data?.sms_configured || false)).catch(() => {});
+  }, []);
 
   const finish = async () => {
+    // Save any pending profile updates
+    const updates = { onboarded: true };
+    if (name.trim().length >= 2) updates.name = name.trim();
+    if (color) updates.color = color;
+    if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
+    if (phone.trim()) updates.phone = phone.trim();
+    updates.auto_sms = autoSms;
+    await updateMe(updates);
+    await refresh();
+    // Track what was completed for reminder banners
+    const completed = {
+      profile: name.trim().length >= 2,
+      avatar: !!avatarUrl,
+      phone: !!phone.trim(),
+      push: pushEnabled,
+      table: !!createdTable,
+    };
+    localStorage.setItem("rt-onboarded", "true");
+    localStorage.setItem("rt-onboard-completed", JSON.stringify(completed));
+    nav("/");
+  };
+
+  const skipAll = async () => {
     await updateMe({ onboarded: true });
     await refresh();
     localStorage.setItem("rt-onboarded", "true");
+    localStorage.setItem("rt-onboard-completed", JSON.stringify({ profile: false, avatar: false, phone: false, push: false, table: false }));
     nav("/");
   };
 
   const saveProfile = async () => {
     setBusy(true);
     try {
-      await updateMe({ name, color, status });
+      await updateMe({ name: name.trim(), color, avatar_url: avatarUrl });
       setStep(3);
     } catch (e) {
       toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
@@ -43,13 +81,35 @@ export default function Onboarding() {
     }
   };
 
+  const saveConnectivity = async () => {
+    setBusy(true);
+    try {
+      const updates = {};
+      if (phone.trim()) updates.phone = phone.trim();
+      updates.auto_sms = autoSms;
+      if (Object.keys(updates).length) await updateMe(updates);
+      setStep(4);
+    } catch (e) {
+      toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const enablePush = async () => {
+    const ok = await subscribeToPush();
+    setPushEnabled(ok);
+    if (ok) toast.success("Push notifications enabled!");
+    else toast.error("Could not enable push — check browser permissions");
+  };
+
   const createTable = async () => {
     if (!tableName.trim()) return toast.error("Give your table a name");
     setBusy(true);
     try {
       const { data } = await api.post("/tables", { name: tableName.trim(), color: tableColor, active: tableActive });
       setCreatedTable(data);
-      setStep(4);
+      setStep(5);
     } catch (e) {
       toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
     } finally {
@@ -73,17 +133,19 @@ export default function Onboarding() {
 
   const copyInvite = () => {
     if (!inviteCode) return;
-    navigator.clipboard.writeText(inviteCode).then(() => toast.success("Copied to clipboard"));
+    navigator.clipboard.writeText(inviteCode).then(() => toast.success("Copied!"));
   };
 
   return (
     <div className="onboard-bg">
-      <div className="onboard-card" data-testid="onboarding-card">
+      <div className="onboard-card" data-testid="onboarding-card" style={{ maxWidth: 500 }}>
         <div className="onboard-progress">
-          {[1, 2, 3, 4, 5].map((n) => (
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
             <span key={n} className={n <= step ? "done" : ""} />
           ))}
         </div>
+
+        {/* Step 1: Welcome */}
         {step === 1 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -91,25 +153,46 @@ export default function Onboarding() {
                 <Armchair size={28} />
               </div>
               <div>
-                <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", margin: 0 }}>Welcome to Round Table</h1>
-                <p className="text-mute" style={{ margin: 0, fontSize: 14 }}>Where your people gather.</p>
+                <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", margin: 0 }}>Welcome to Round Table</h1>
+                <p className="text-mute" style={{ margin: 0, fontSize: 13 }}>Where your people gather.</p>
               </div>
             </div>
-            <div style={{ padding: 20, background: "var(--bg-tertiary)", borderRadius: 12, marginBottom: 20, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <div style={{ padding: 18, background: "var(--bg-tertiary)", borderRadius: 12, marginBottom: 20, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
               Families, teams, faith communities, neighborhoods — your people don't fit in a chat thread.
-              They fit around a table. Let's build yours.
+              They fit around a table. Let's get you set up in just a few steps.
             </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
-              <button className="btn btn-ghost" onClick={finish} data-testid="onboard-skip-btn" style={{ fontSize: 12 }}>Skip Tour</button>
+            <div style={footerRow}>
+              <button className="btn btn-ghost" onClick={skipAll} data-testid="onboard-skip-btn" style={{ fontSize: 12 }}>Complete later</button>
               <button className="btn btn-primary" onClick={() => setStep(2)} data-testid="onboard-get-started" style={{ padding: "10px 20px" }}>Get Started</button>
             </div>
           </div>
         )}
 
+        {/* Step 2: Profile — Name, Color, Avatar */}
         {step === 2 && (
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "4px 0 4px" }}>Who's at the table?</h2>
-            <p className="text-mute" style={{ fontSize: 13, marginBottom: 18 }}>This is how others will see you.</p>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "4px 0 4px" }}>Your Look</h2>
+            <p className="text-mute" style={{ fontSize: 12, marginBottom: 16 }}>How others will see you at the table.</p>
+
+            {/* Avatar */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+              <div style={{ position: "relative", cursor: "pointer" }} onClick={() => setShowAvatarPicker(true)} data-testid="onboard-avatar-edit">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" style={{ width: 80, height: 80, borderRadius: 20, objectFit: "cover", border: "2px solid var(--border-light)" }} />
+                ) : (
+                  <div className="avatar" style={{ width: 80, height: 80, background: color, fontSize: 26, borderRadius: 20 }}>
+                    {(name || "?").split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase()}
+                  </div>
+                )}
+                <div style={{
+                  position: "absolute", bottom: -4, right: -4, width: 28, height: 28, borderRadius: "50%",
+                  background: "var(--mac-blue)", border: "2px solid var(--bg-primary)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Camera size={12} color="#fff" />
+                </div>
+              </div>
+            </div>
 
             <label style={lbl}>Display Name</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={50} data-testid="onboard-name-input" style={{ margin: "6px 0 14px" }} />
@@ -117,171 +200,203 @@ export default function Onboarding() {
             <label style={lbl}>Seat Color</label>
             <div style={{ display: "flex", gap: 8, margin: "8px 0 16px", flexWrap: "wrap" }}>
               {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  data-testid={`onboard-color-${c.replace("#", "")}`}
-                  style={{
-                    width: 32, height: 32, borderRadius: 10,
-                    background: c, cursor: "pointer",
-                    border: color === c ? "3px solid var(--text-primary)" : "1px solid var(--border-color)",
-                    transition: "transform 0.15s ease",
-                  }}
-                />
+                <button key={c} onClick={() => setColor(c)} data-testid={`onboard-color-${c.replace("#", "")}`}
+                  style={{ width: 32, height: 32, borderRadius: 10, background: c, cursor: "pointer",
+                    border: color === c ? "3px solid var(--text-primary)" : "1px solid var(--border-color)" }} />
               ))}
             </div>
 
-            <label style={lbl}>Status</label>
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value)} data-testid="onboard-status-select" style={{ margin: "6px 0 22px" }}>
-              <option value="online">Online</option>
-              <option value="away">Away</option>
-              <option value="dnd">Do Not Disturb</option>
-            </select>
+            <div style={footerRow}>
+              <button className="btn btn-ghost" onClick={() => { setStep(3); }} style={{ fontSize: 12 }}>Complete later</button>
+              <button className="btn btn-primary" disabled={busy || name.trim().length < 2} onClick={saveProfile} data-testid="onboard-profile-next">
+                {busy ? "Saving..." : "Next"}
+              </button>
+            </div>
+
+            {showAvatarPicker && (
+              <AvatarPicker
+                currentUrl={avatarUrl}
+                onSelect={(url) => setAvatarUrl(url)}
+                onClose={() => setShowAvatarPicker(false)}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Step 3: Stay Connected — Phone, SMS, Push */}
+        {step === 3 && (
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "4px 0 4px" }}>Stay Connected</h2>
+            <p className="text-mute" style={{ fontSize: 12, marginBottom: 16 }}>Never miss what matters, even when you're away.</p>
+
+            {/* Phone + Auto-SMS */}
+            <label style={lbl}><Phone size={10} /> Phone Number</label>
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 (555) 123-4567" maxLength={20} data-testid="onboard-phone-input" style={{ margin: "6px 0 14px" }} />
+
+            {smsConfigured && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 12px", borderRadius: 10, marginBottom: 14,
+                background: autoSms ? "rgba(52, 199, 89, 0.08)" : "var(--bg-tertiary)",
+                border: `1px solid ${autoSms ? "rgba(52, 199, 89, 0.3)" : "var(--border-light)"}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>Text me when I miss something</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>SMS for pings, messages, prayers & calls</div>
+                </div>
+                <button
+                  className={`btn ${autoSms ? "btn-secondary" : "btn-primary"}`}
+                  onClick={() => setAutoSms(!autoSms)}
+                  disabled={!phone.trim()}
+                  data-testid="onboard-auto-sms-toggle"
+                  style={{ fontSize: 11, padding: "4px 12px", opacity: phone.trim() ? 1 : 0.5 }}
+                >
+                  {autoSms ? "On" : "Off"}
+                </button>
+              </div>
+            )}
+
+            {/* Push notifications */}
+            {isPushSupported() && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 12px", borderRadius: 10, marginBottom: 14,
+                background: pushEnabled ? "rgba(52, 199, 89, 0.08)" : "var(--bg-tertiary)",
+                border: `1px solid ${pushEnabled ? "rgba(52, 199, 89, 0.3)" : "var(--border-light)"}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    <Bell size={11} style={{ verticalAlign: -1, marginRight: 4 }} />
+                    Browser push notifications
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Alerts even when the tab is closed</div>
+                </div>
+                <button
+                  className={`btn ${pushEnabled ? "btn-secondary" : "btn-primary"}`}
+                  onClick={enablePush}
+                  data-testid="onboard-push-toggle"
+                  style={{ fontSize: 11, padding: "4px 12px" }}
+                >
+                  {pushEnabled ? "Enabled" : "Enable"}
+                </button>
+              </div>
+            )}
 
             <div style={footerRow}>
-              <button className="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
-              <button className="btn btn-primary" disabled={busy || name.trim().length < 2} onClick={saveProfile} data-testid="onboard-profile-next">
-                {busy ? "Saving…" : "Next"}
+              <button className="btn btn-ghost" onClick={() => setStep(4)} style={{ fontSize: 12 }}>Complete later</button>
+              <button className="btn btn-primary" onClick={saveConnectivity} data-testid="onboard-connect-next">
+                {busy ? "Saving..." : "Next"}
               </button>
             </div>
           </div>
         )}
 
-        {step === 3 && (
+        {/* Step 4: Create Table */}
+        {step === 4 && (
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "4px 0 4px" }}>Start your first Round Table</h2>
-            <p className="text-mute" style={{ fontSize: 13, marginBottom: 18 }}>
-              A table is where your group gathers. Think of it as your shared space.
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "4px 0 4px" }}>Your First Table</h2>
+            <p className="text-mute" style={{ fontSize: 12, marginBottom: 16 }}>
+              A table is where your group gathers — your shared space.
             </p>
 
             <label style={lbl}>Table Name</label>
-            <input
-              className="input"
-              placeholder="Family Circle, Study Group, Project Team…"
-              value={tableName}
-              onChange={(e) => setTableName(e.target.value)}
-              maxLength={60}
-              data-testid="onboard-table-name-input"
-              style={{ margin: "6px 0 14px" }}
-            />
+            <input className="input" placeholder="Family Circle, Study Group, Project Team..." value={tableName} onChange={(e) => setTableName(e.target.value)} maxLength={60} data-testid="onboard-table-name-input" style={{ margin: "6px 0 14px" }} />
 
             <label style={lbl}>Table Color</label>
-            <div style={{ display: "flex", gap: 8, margin: "8px 0 16px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, margin: "8px 0 14px", flexWrap: "wrap" }}>
               {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setTableColor(c)}
-                  data-testid={`onboard-table-color-${c.replace("#", "")}`}
-                  style={{
-                    width: 32, height: 32, borderRadius: 10,
-                    background: c, cursor: "pointer",
-                    border: tableColor === c ? "3px solid var(--text-primary)" : "1px solid var(--border-color)",
-                  }}
-                />
+                <button key={c} onClick={() => setTableColor(c)} data-testid={`onboard-table-color-${c.replace("#", "")}`}
+                  style={{ width: 32, height: 32, borderRadius: 10, background: c, cursor: "pointer",
+                    border: tableColor === c ? "3px solid var(--text-primary)" : "1px solid var(--border-color)" }} />
               ))}
             </div>
 
-            <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textTransform: "none", fontSize: 13, fontWeight: 400 }}>
+            <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textTransform: "none", fontSize: 12, fontWeight: 400 }}>
               <input type="checkbox" checked={tableActive} onChange={(e) => setTableActive(e.target.checked)} data-testid="onboard-table-active" />
-              Make this table active (live)
+              Make this table live
             </label>
 
-            {/* Preview */}
-            <div style={{ marginTop: 18, padding: 18, background: "var(--bg-tertiary)", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: "50%",
-                background: tableColor, color: "#fff", display: "flex",
-                alignItems: "center", justifyContent: "center", fontWeight: 700,
-              }}>
-                <Armchair size={22} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{tableName || "Your table name"}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                  {tableActive ? "Live — people are gathered" : "Dormant"}
+            {tableName.trim() && (
+              <div style={{ marginTop: 14, padding: 14, background: "var(--bg-tertiary)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: tableColor, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Armchair size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{tableName}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{tableActive ? "Live" : "Dormant"}</div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div style={{ ...footerRow, marginTop: 18 }}>
-              <button className="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
+            <div style={{ ...footerRow, marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={() => setStep(6)} style={{ fontSize: 12 }}>Complete later</button>
               <button className="btn btn-primary" onClick={createTable} disabled={busy || !tableName.trim()} data-testid="onboard-create-table-btn">
-                {busy ? "Creating…" : "Create Table"}
+                {busy ? "Creating..." : "Create Table"}
               </button>
             </div>
           </div>
         )}
 
-        {step === 4 && (
+        {/* Step 5: Invite People */}
+        {step === 5 && (
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "4px 0 4px" }}>Bring your people to the table</h2>
-            <p className="text-mute" style={{ fontSize: 13, marginBottom: 18 }}>No one collaborates alone.</p>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "4px 0 4px" }}>Bring Your People</h2>
+            <p className="text-mute" style={{ fontSize: 12, marginBottom: 16 }}>No one collaborates alone.</p>
 
             {!inviteCode ? (
               <button className="btn btn-primary" onClick={generateInvite} disabled={busy} data-testid="onboard-generate-invite" style={{ width: "100%", padding: "12px 16px" }}>
-                <Link2 size={16} /> {busy ? "Generating…" : "Generate Invite Code"}
+                <Link2 size={16} /> {busy ? "Generating..." : "Generate Invite Code"}
               </button>
             ) : (
               <div style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-light)", borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Your Invite Code</div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Your Invite Code</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
                   <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2, fontFamily: "Menlo, monospace" }}>{inviteCode}</div>
-                  <button className="btn btn-secondary" onClick={copyInvite} data-testid="onboard-copy-invite"><Copy size={14} /> Copy</button>
+                  <button className="btn btn-secondary" onClick={copyInvite} data-testid="onboard-copy-invite"><Copy size={14} /></button>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 10 }}>
-                  Share this code. Anyone can join by entering it in their Round Table.
-                </div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>Share this code with your group.</div>
               </div>
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
               <button className="btn btn-secondary" onClick={() => window.location.href = `sms:?body=Join my Round Table with code ${inviteCode || "..."}`} disabled={!inviteCode}><MessageSquare size={14} /> Text</button>
-              <button className="btn btn-secondary" onClick={() => window.location.href = `mailto:?subject=Come to my Round Table&body=Join with code: ${inviteCode || "..."}`} disabled={!inviteCode}><Mail size={14} /> Email</button>
+              <button className="btn btn-secondary" onClick={() => window.location.href = `mailto:?subject=Join Round Table&body=Join with code: ${inviteCode || "..."}`} disabled={!inviteCode}><Mail size={14} /> Email</button>
             </div>
 
-            <div style={{ ...footerRow, marginTop: 22 }}>
-              <button className="btn btn-ghost" onClick={() => setStep(5)} data-testid="onboard-invite-skip">I'll do this later</button>
-              <button className="btn btn-primary" onClick={() => setStep(5)} data-testid="onboard-invite-next">Next</button>
+            <div style={{ ...footerRow, marginTop: 18 }}>
+              <button className="btn btn-ghost" onClick={() => setStep(6)} data-testid="onboard-invite-skip" style={{ fontSize: 12 }}>Complete later</button>
+              <button className="btn btn-primary" onClick={() => setStep(6)} data-testid="onboard-invite-next">Next</button>
             </div>
           </div>
         )}
 
-        {step === 5 && (
+        {/* Step 6: All Set */}
+        {step === 6 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <div className="avatar" style={{ width: 44, height: 44, background: "var(--mac-green)", borderRadius: 12 }}>
                 <Sparkles size={22} />
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>You're all set</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>You're all set!</h2>
             </div>
-            <p className="text-mute" style={{ fontSize: 13, marginBottom: 16 }}>Here's the lay of the land:</p>
 
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {[
-                ["Sidebar", "Your navigation. Tables, portal, calendar, messages."],
-                ["Portal", "Your home base. Comms hub, widgets, quick actions."],
-                ["Round Table", "The visual table where items and members live."],
-                ["Dock", "Quick access to everything, macOS-style."],
-                ["Dark Mode Toggle", "Easy on the eyes, day or night."],
-              ].map(([t, d], i) => (
-                <li key={t} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i < 4 ? "1px solid var(--border-light)" : "none" }}>
-                  <div className="avatar" style={{ width: 24, height: 24, background: "var(--mac-blue)", borderRadius: 6, fontSize: 11 }}>
-                    <Check size={14} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{d}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <div style={{ ...footerRow, marginTop: 22 }}>
-              <div />
-              <button className="btn btn-primary" onClick={finish} data-testid="onboard-finish-btn" style={{ padding: "10px 22px" }}>
-                Start Collaborating
-              </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              <StatusRow done={name.trim().length >= 2} label="Profile name" />
+              <StatusRow done={!!avatarUrl} label="Avatar" />
+              <StatusRow done={!!phone.trim()} label="Phone number" />
+              <StatusRow done={pushEnabled} label="Push notifications" />
+              <StatusRow done={!!createdTable} label="First table" />
             </div>
+
+            {(!avatarUrl || !phone.trim() || !pushEnabled || !createdTable) && (
+              <div style={{ padding: 12, background: "var(--bg-tertiary)", borderRadius: 10, marginBottom: 16, fontSize: 12, color: "var(--text-secondary)" }}>
+                No worries about skipped items — you'll see gentle reminders on your Portal to finish setting up whenever you're ready.
+              </div>
+            )}
+
+            <button className="btn btn-primary" onClick={finish} data-testid="onboard-finish-btn" style={{ width: "100%", padding: "12px 16px", fontSize: 14 }}>
+              Start Collaborating
+            </button>
           </div>
         )}
       </div>
@@ -289,11 +404,21 @@ export default function Onboarding() {
   );
 }
 
-const lbl = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-};
+function StatusRow({ done, label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-light)" }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: 6,
+        background: done ? "var(--mac-green)" : "var(--bg-tertiary)",
+        border: done ? "none" : "1px solid var(--border-color)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {done && <Check size={12} color="#fff" />}
+      </div>
+      <span style={{ fontSize: 13, fontWeight: done ? 600 : 400, color: done ? "var(--text-primary)" : "var(--text-secondary)" }}>{label}</span>
+    </div>
+  );
+}
+
+const lbl = { fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5 };
 const footerRow = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 };
