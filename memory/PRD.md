@@ -147,6 +147,23 @@
 - **Soft golden light mode** — replaced stark white with warm golden tint (#FEFCF3 base)
 - Theme persists in localStorage (`rt-theme`), toggleable via title bar sun/moon icon
 
+### Preset Avatar Library
+- **288 avatar options** — 12 DiceBear styles x 24 unique seeds
+- Styles: Adventurer, Classic, Big Ears, Robots, Emoji, Lorelei, Micah, Notion, Peeps, Pixel, Thumbs, Personas
+- Avatar picker modal in Settings (click profile image → opens picker)
+- "Use Initials" button to revert to letter-based avatars
+- Stored as `avatar_url` in user profile
+
+### In-App File Viewer + Co-Viewing
+- **FileViewerModal** — opens when clicking shared items on a table
+- Supports: images (full preview), videos (inline player), PDFs (embedded viewer with page nav), other (download)
+- **"Present to Table"** button — starts co-viewing mode:
+  - Presenter's view is broadcast to all table members via WebSocket
+  - Videos: play/pause/seek syncs for everyone
+  - PDFs: page number syncs
+  - Images: same image shown to all
+- WebSocket events: `present_start`, `present_sync`, `present_stop`
+
 ## Backlog
 
 ### Deferred Enhancement (user said "remember, don't build yet")
@@ -178,3 +195,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 7 (Twilio SMS Bridge):** Backend 9/9 (100%), Frontend 100% — zero regressions
 - **Iteration 8 (Auto-SMS Opt-in):** Backend 18/18 (100%), Frontend 7/7 (100%) — zero regressions
 - **Iteration 9 (Dark Default + Golden Light + Event Reminders):** Backend 13/13 (100%), Frontend 9/9 (100%) — zero regressions
+- **Iteration 10 (Avatars + File Viewer + Co-Viewing):** Backend 17/17 (100%), Frontend 100% — zero regressions
