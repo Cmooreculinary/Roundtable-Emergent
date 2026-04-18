@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { Copy, Plus, Users, Trophy } from "lucide-react";
+import { Copy, Plus, Users, Trophy, Phone, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import HelpTip from "../components/rt/HelpTip";
 
@@ -9,13 +9,21 @@ export default function InvitesView({ tables, onOpenInvite }) {
   const [referrals, setReferrals] = useState({ invited: 0, joined: 0, uses: 0, badge: "No badge yet" });
   const [leaderboard, setLeaderboard] = useState([]);
   const [joinCode, setJoinCode] = useState("");
+  const [smsConfigured, setSmsConfigured] = useState(false);
+  const [smsTarget, setSmsTarget] = useState(null); // { code, tableName }
+  const [smsPhone, setSmsPhone] = useState("");
+  const [smsBusy, setSmsBusy] = useState(false);
 
-  const load = () => {
-    api.get("/invites").then((r) => setInvites(r.data || []));
-    api.get("/referrals").then((r) => setReferrals(r.data || {}));
-    api.get("/referrals/leaderboard").then((r) => setLeaderboard(r.data || []));
-  };
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => {
+    api.get("/invites").then((r) => setInvites(r.data || [])).catch((err) => console.error("Failed to load invites:", err));
+    api.get("/referrals").then((r) => setReferrals(r.data || {})).catch((err) => console.error("Failed to load referrals:", err));
+    api.get("/referrals/leaderboard").then((r) => setLeaderboard(r.data || [])).catch((err) => console.error("Failed to load leaderboard:", err));
+  }, []);
+
+  useEffect(() => {
+    load();
+    api.get("/bridges/status").then((r) => setSmsConfigured(r.data?.sms_configured || false)).catch(() => {});
+  }, [load]);
 
   const copy = (code) => navigator.clipboard.writeText(code).then(() => toast.success("Copied"));
 
@@ -28,6 +36,25 @@ export default function InvitesView({ tables, onOpenInvite }) {
       load();
     } catch (e) {
       toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+    }
+  };
+
+  const sendSmsInvite = async () => {
+    if (!smsPhone.trim() || !smsTarget) return;
+    setSmsBusy(true);
+    try {
+      await api.post("/bridges/sms", {
+        phone: smsPhone.trim(),
+        message: `You're invited to join "${smsTarget.tableName}" on Round Table! Use code: ${smsTarget.code}`,
+      });
+      toast.success(`Invite sent via SMS to ${smsPhone}`);
+      setSmsTarget(null);
+      setSmsPhone("");
+    } catch (e) {
+      const detail = e.response?.data?.detail || "Failed to send SMS";
+      toast.error(detail);
+    } finally {
+      setSmsBusy(false);
     }
   };
 
@@ -51,6 +78,26 @@ export default function InvitesView({ tables, onOpenInvite }) {
 
           <div className="card" style={{ padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Your Active Invites</div>
+
+            {/* SMS compose inline */}
+            {smsTarget && (
+              <div style={{ padding: 12, marginBottom: 10, borderRadius: 10, borderLeft: "4px solid var(--mac-green)", background: "var(--bg-tertiary)" }} data-testid="invite-sms-compose">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    <Phone size={12} style={{ verticalAlign: -1, marginRight: 4 }} />
+                    Text invite for {smsTarget.tableName} ({smsTarget.code})
+                  </div>
+                  <button className="btn btn-ghost" onClick={() => setSmsTarget(null)} style={{ padding: 2 }}><X size={14} /></button>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="input" value={smsPhone} onChange={(e) => setSmsPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendSmsInvite()} placeholder="+1 (555) 123-4567" maxLength={20} data-testid="invite-sms-phone" style={{ flex: 1 }} />
+                  <button className="btn btn-primary" onClick={sendSmsInvite} disabled={smsBusy || !smsPhone.trim()} data-testid="invite-sms-send">
+                    {smsBusy ? "Sending..." : <><Send size={12} /> Send</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {invites.length === 0 ? (
               <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "10px 0" }}>No invites created yet. Generate one to start.</div>
             ) : invites.map((inv) => {
@@ -65,6 +112,11 @@ export default function InvitesView({ tables, onOpenInvite }) {
                     <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{inv.uses} / {inv.max_uses} uses · expires {(inv.expires_at || "").slice(0, 10)}</div>
                   </div>
                   <code style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.5, background: "var(--bg-tertiary)", padding: "4px 8px", borderRadius: 6 }}>{inv.code}</code>
+                  {smsConfigured && (
+                    <button className="btn btn-secondary" onClick={() => { setSmsTarget({ code: inv.code, tableName: table?.name || "Round Table" }); setSmsPhone(""); }} data-testid={`invite-sms-${inv.id}`} title="Send via SMS">
+                      <Phone size={12} />
+                    </button>
+                  )}
                   <button className="btn btn-secondary" onClick={() => copy(inv.code)} data-testid={`invite-copy-${inv.id}`}><Copy size={12} /></button>
                 </div>
               );
