@@ -10,7 +10,7 @@ export function onRTEvent(fn) {
 }
 function emit(evt) {
   listeners.forEach((fn) => {
-    try { fn(evt); } catch { /* ignore */ }
+    try { fn(evt); } catch (err) { console.error("RT event listener error:", err); }
   });
 }
 
@@ -38,7 +38,7 @@ function connect(onOpen) {
     try {
       const data = JSON.parse(e.data);
       emit(data);
-    } catch { /* ignore */ }
+    } catch (err) { console.error("WS message parse error:", err); }
   };
   socket.onclose = () => {
     if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }

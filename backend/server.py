@@ -252,191 +252,167 @@ user_call_map: dict = {}
 
 
 async def _handle_webrtc_message(user_id: str, msg: dict):
-    """Process WebRTC signaling messages received over the WebSocket."""
-    msg_type = msg.get("type")
+    """Process WebRTC signaling messages — dispatch pattern."""
+    _dispatch = {
+        "call_start": _handle_call_start,
+        "call_join": _handle_call_join,
+        "call_leave": _handle_call_leave,
+        "webrtc_offer": _handle_sdp_relay,
+        "webrtc_answer": _handle_sdp_relay,
+        "webrtc_ice": _handle_ice_relay,
+        "walkie_talk_state": _handle_walkie_talk_state,
+    }
+    handler = _dispatch.get(msg.get("type"))
+    if handler:
+        await handler(user_id, msg)
 
-    if msg_type == "call_start":
-        call_id = msg.get("call_id") or new_id()
-        table_id = msg.get("table_id")
-        call_type = msg.get("call_type", "video")  # "audio" or "video"
-        target_user = msg.get("target_user")  # for direct 1:1 calls
 
-        active_calls[call_id] = {
-            "call_id": call_id,
-            "table_id": table_id,
-            "type": call_type,
-            "participants": {user_id},
-            "created_by": user_id,
-            "created_at": now_iso(),
-            "target_user": target_user,
-        }
-        user_call_map[user_id] = call_id
+async def _handle_call_start(user_id: str, msg: dict):
+    call_id = msg.get("call_id") or new_id()
+    table_id = msg.get("table_id")
+    call_type = msg.get("call_type", "video")
+    target_user = msg.get("target_user")
 
-        # Persist call log to DB
-        await db.call_logs.insert_one({
-            "call_id": call_id,
-            "table_id": table_id,
-            "type": call_type,
-            "created_by": user_id,
-            "target_user": target_user,
-            "participants": [user_id],
-            "started_at": now_iso(),
-            "ended_at": None,
-            "duration_seconds": 0,
-            "status": "active",
+    active_calls[call_id] = {
+        "call_id": call_id, "table_id": table_id, "type": call_type,
+        "participants": {user_id}, "created_by": user_id,
+        "created_at": now_iso(), "target_user": target_user,
+    }
+    user_call_map[user_id] = call_id
+
+    await db.call_logs.insert_one({
+        "call_id": call_id, "table_id": table_id, "type": call_type,
+        "created_by": user_id, "target_user": target_user,
+        "participants": [user_id], "started_at": now_iso(),
+        "ended_at": None, "duration_seconds": 0, "status": "active",
+    })
+
+    caller = await db.users.find_one({"id": user_id}, {"_id": 0})
+    caller_info = user_public(caller) if caller else {"id": user_id, "name": "Someone"}
+    incoming_payload = {
+        "type": "call_incoming", "call_id": call_id,
+        "call_type": call_type, "table_id": table_id, "caller": caller_info,
+    }
+
+    if target_user:
+        await ws_manager.send_to_user(target_user, incoming_payload)
+        if not ws_manager.is_online(target_user):
+            await send_push_to_user(target_user, f"Incoming {call_type} call", f"{caller_info.get('name', 'Someone')} is calling you", {"type": "call", "call_id": call_id})
+            await send_auto_sms_if_offline(target_user, f"{caller_info.get('name', 'Someone')} tried to call you ({call_type}). Open Round Table to call back!")
+    elif table_id:
+        await ws_manager.broadcast_to_table(table_id, incoming_payload, exclude_user=user_id)
+
+    await ws_manager.send_to_user(user_id, {
+        "type": "call_started", "call_id": call_id,
+        "call_type": call_type, "participants": list(active_calls[call_id]["participants"]),
+    })
+    logger.info(f"Call {call_id} started by {user_id} (type={call_type})")
+
+
+async def _handle_call_join(user_id: str, msg: dict):
+    call_id = msg.get("call_id")
+    if not call_id or call_id not in active_calls:
+        await ws_manager.send_to_user(user_id, {"type": "call_error", "error": "Call not found or ended"})
+        return
+
+    call = active_calls[call_id]
+    existing_participants = list(call["participants"])
+    call["participants"].add(user_id)
+    user_call_map[user_id] = call_id
+
+    await db.call_logs.update_one({"call_id": call_id}, {"$addToSet": {"participants": user_id}})
+
+    joiner = await db.users.find_one({"id": user_id}, {"_id": 0})
+    joiner_info = user_public(joiner) if joiner else {"id": user_id, "name": "Someone"}
+
+    for pid in existing_participants:
+        await ws_manager.send_to_user(pid, {
+            "type": "call_peer_joined", "call_id": call_id,
+            "peer": joiner_info, "participants": list(call["participants"]),
         })
 
-        caller = await db.users.find_one({"id": user_id}, {"_id": 0})
-        caller_info = user_public(caller) if caller else {"id": user_id, "name": "Someone"}
+    peer_infos = []
+    for pid in existing_participants:
+        p = await db.users.find_one({"id": pid}, {"_id": 0})
+        if p:
+            peer_infos.append(user_public(p))
+    await ws_manager.send_to_user(user_id, {
+        "type": "call_joined", "call_id": call_id,
+        "call_type": call["type"], "existing_peers": peer_infos,
+        "participants": list(call["participants"]),
+    })
+    logger.info(f"User {user_id} joined call {call_id}")
 
-        incoming_payload = {
-            "type": "call_incoming",
-            "call_id": call_id,
-            "call_type": call_type,
-            "table_id": table_id,
-            "caller": caller_info,
-        }
 
-        if target_user:
-            # Direct 1:1 call — only notify the target
-            await ws_manager.send_to_user(target_user, incoming_payload)
-            if not ws_manager.is_online(target_user):
-                await send_push_to_user(target_user, f"Incoming {call_type} call", f"{caller_info.get('name', 'Someone')} is calling you", {"type": "call", "call_id": call_id})
-                await send_auto_sms_if_offline(target_user, f"{caller_info.get('name', 'Someone')} tried to call you ({call_type}). Open Round Table to call back!")
-        elif table_id:
-            # Table-wide call — notify all table members except caller
-            await ws_manager.broadcast_to_table(table_id, incoming_payload, exclude_user=user_id)
+async def _handle_call_leave(user_id: str, msg: dict):
+    call_id = msg.get("call_id") or user_call_map.get(user_id)
+    if not (call_id and call_id in active_calls):
+        return
 
-        # Confirm to caller
-        await ws_manager.send_to_user(user_id, {
-            "type": "call_started",
-            "call_id": call_id,
-            "call_type": call_type,
-            "participants": list(active_calls[call_id]["participants"]),
+    call = active_calls[call_id]
+    call["participants"].discard(user_id)
+    user_call_map.pop(user_id, None)
+
+    leaver = await db.users.find_one({"id": user_id}, {"_id": 0})
+    leaver_info = user_public(leaver) if leaver else {"id": user_id}
+
+    for pid in list(call["participants"]):
+        await ws_manager.send_to_user(pid, {
+            "type": "call_peer_left", "call_id": call_id,
+            "peer": leaver_info, "participants": list(call["participants"]),
         })
-        logger.info(f"Call {call_id} started by {user_id} (type={call_type})")
 
-    elif msg_type == "call_join":
-        call_id = msg.get("call_id")
-        if not call_id or call_id not in active_calls:
-            await ws_manager.send_to_user(user_id, {"type": "call_error", "error": "Call not found or ended"})
-            return
+    if not call["participants"]:
+        await _finalize_call_log(call_id, call)
+        active_calls.pop(call_id, None)
+    logger.info(f"User {user_id} left call {call_id}")
 
-        call = active_calls[call_id]
-        existing_participants = list(call["participants"])
-        call["participants"].add(user_id)
-        user_call_map[user_id] = call_id
 
-        # Update call log with new participant
-        await db.call_logs.update_one(
-            {"call_id": call_id},
-            {"$addToSet": {"participants": user_id}},
-        )
+async def _finalize_call_log(call_id: str, call: dict):
+    """Calculate duration and mark call log as ended."""
+    started = call.get("created_at", now_iso())
+    try:
+        start_dt = datetime.fromisoformat(started)
+        duration = int((datetime.now(timezone.utc) - start_dt).total_seconds())
+    except Exception:
+        duration = 0
+    await db.call_logs.update_one(
+        {"call_id": call_id},
+        {"$set": {"ended_at": now_iso(), "duration_seconds": duration, "status": "ended"}},
+    )
+    logger.info(f"Call {call_id} ended (duration={duration}s)")
 
-        joiner = await db.users.find_one({"id": user_id}, {"_id": 0})
-        joiner_info = user_public(joiner) if joiner else {"id": user_id, "name": "Someone"}
 
-        # Notify all existing participants that a new peer joined
-        for pid in existing_participants:
-            await ws_manager.send_to_user(pid, {
-                "type": "call_peer_joined",
-                "call_id": call_id,
-                "peer": joiner_info,
-                "participants": list(call["participants"]),
-            })
-
-        # Tell the joiner who is already in the call
-        peer_infos = []
-        for pid in existing_participants:
-            p = await db.users.find_one({"id": pid}, {"_id": 0})
-            if p:
-                peer_infos.append(user_public(p))
-        await ws_manager.send_to_user(user_id, {
-            "type": "call_joined",
-            "call_id": call_id,
-            "call_type": call["type"],
-            "existing_peers": peer_infos,
-            "participants": list(call["participants"]),
+async def _handle_sdp_relay(user_id: str, msg: dict):
+    """Relay SDP offer or answer to the target peer."""
+    target = msg.get("target_user")
+    if target:
+        await ws_manager.send_to_user(target, {
+            "type": msg["type"], "from_user": user_id,
+            "call_id": msg.get("call_id"), "sdp": msg.get("sdp"),
         })
-        logger.info(f"User {user_id} joined call {call_id}")
 
-    elif msg_type == "call_leave":
-        call_id = msg.get("call_id") or user_call_map.get(user_id)
-        if call_id and call_id in active_calls:
-            call = active_calls[call_id]
-            call["participants"].discard(user_id)
-            user_call_map.pop(user_id, None)
 
-            leaver = await db.users.find_one({"id": user_id}, {"_id": 0})
-            leaver_info = user_public(leaver) if leaver else {"id": user_id}
+async def _handle_ice_relay(user_id: str, msg: dict):
+    """Relay ICE candidate to the target peer."""
+    target = msg.get("target_user")
+    if target:
+        await ws_manager.send_to_user(target, {
+            "type": "webrtc_ice", "from_user": user_id,
+            "call_id": msg.get("call_id"), "candidate": msg.get("candidate"),
+        })
 
-            for pid in list(call["participants"]):
+
+async def _handle_walkie_talk_state(user_id: str, msg: dict):
+    """Broadcast talking state to all call participants."""
+    call_id = msg.get("call_id") or user_call_map.get(user_id)
+    if call_id and call_id in active_calls:
+        for pid in active_calls[call_id]["participants"]:
+            if pid != user_id:
                 await ws_manager.send_to_user(pid, {
-                    "type": "call_peer_left",
-                    "call_id": call_id,
-                    "peer": leaver_info,
-                    "participants": list(call["participants"]),
+                    "type": "walkie_talk_state", "from_user": user_id,
+                    "talking": msg.get("talking", False), "call_id": call_id,
                 })
-
-            # Clean up empty calls
-            if not call["participants"]:
-                # Finalize call log
-                started = call.get("created_at", now_iso())
-                try:
-                    start_dt = datetime.fromisoformat(started)
-                    duration = int((datetime.now(timezone.utc) - start_dt).total_seconds())
-                except Exception:
-                    duration = 0
-                await db.call_logs.update_one(
-                    {"call_id": call_id},
-                    {"$set": {"ended_at": now_iso(), "duration_seconds": duration, "status": "ended"}},
-                )
-                active_calls.pop(call_id, None)
-                logger.info(f"Call {call_id} ended (empty, duration={duration}s)")
-            logger.info(f"User {user_id} left call {call_id}")
-
-    elif msg_type == "webrtc_offer":
-        target = msg.get("target_user")
-        if target:
-            await ws_manager.send_to_user(target, {
-                "type": "webrtc_offer",
-                "from_user": user_id,
-                "call_id": msg.get("call_id"),
-                "sdp": msg.get("sdp"),
-            })
-
-    elif msg_type == "webrtc_answer":
-        target = msg.get("target_user")
-        if target:
-            await ws_manager.send_to_user(target, {
-                "type": "webrtc_answer",
-                "from_user": user_id,
-                "call_id": msg.get("call_id"),
-                "sdp": msg.get("sdp"),
-            })
-
-    elif msg_type == "webrtc_ice":
-        target = msg.get("target_user")
-        if target:
-            await ws_manager.send_to_user(target, {
-                "type": "webrtc_ice",
-                "from_user": user_id,
-                "call_id": msg.get("call_id"),
-                "candidate": msg.get("candidate"),
-            })
-
-    elif msg_type == "walkie_talk_state":
-        # Broadcast talking state to all call participants
-        call_id = msg.get("call_id") or user_call_map.get(user_id)
-        if call_id and call_id in active_calls:
-            for pid in active_calls[call_id]["participants"]:
-                if pid != user_id:
-                    await ws_manager.send_to_user(pid, {
-                        "type": "walkie_talk_state",
-                        "from_user": user_id,
-                        "talking": msg.get("talking", False),
-                        "call_id": call_id,
-                    })
 
 
 # ---------- Object storage ----------
@@ -1965,17 +1941,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "participants": list(call["participants"]),
                 })
             if not call["participants"]:
-                # Finalize call log on disconnect cleanup
-                started = call.get("created_at", now_iso())
-                try:
-                    start_dt = datetime.fromisoformat(started)
-                    duration = int((datetime.now(timezone.utc) - start_dt).total_seconds())
-                except Exception:
-                    duration = 0
-                await db.call_logs.update_one(
-                    {"call_id": call_id},
-                    {"$set": {"ended_at": now_iso(), "duration_seconds": duration, "status": "ended"}},
-                )
+                await _finalize_call_log(call_id, call)
                 active_calls.pop(call_id, None)
         await ws_manager.disconnect(user_id, websocket)
 

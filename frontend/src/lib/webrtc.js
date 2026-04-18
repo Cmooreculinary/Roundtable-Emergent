@@ -32,7 +32,7 @@ export function onCallStateChange(fn) {
 }
 function notifyStateChange(event, data) {
   stateListeners.forEach((fn) => {
-    try { fn(event, data); } catch { /* ignore */ }
+    try { fn(event, data); } catch (err) { console.error("Call state listener error:", err); }
   });
 }
 

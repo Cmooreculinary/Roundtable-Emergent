@@ -70,8 +70,8 @@ export default function Portal({ tables, notifications, onOpenInvite, onOpenShar
         <Widget title="Recent on Tables" icon={<FileText size={14} />}>
           {recentItems.length === 0 ? (
             <div style={{ fontSize: 12, color: "var(--text-secondary)", padding: "8px 0" }}>Nothing shared yet. Share something to get the table going.</div>
-          ) : recentItems.map((it, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-light)" }}>
+          ) : recentItems.map((it) => (
+            <div key={it.id || it.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-light)" }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: it.tableColor, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <FileText size={14} />
               </div>

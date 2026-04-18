@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
-// Shows once per section per browser
+/**
+ * Contextual help tooltip — shows once per section, auto-dismisses after 8s.
+ * Uses localStorage for UI preference flags only (non-sensitive dismiss state).
+ * Keys: "rt-help-{section}" = "1" when dismissed.
+ */
 export default function HelpTip({ section, text, position = "top-right" }) {
   const key = `rt-help-${section}`;
   const [show, setShow] = useState(() => !localStorage.getItem(key));

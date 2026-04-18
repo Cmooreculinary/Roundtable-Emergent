@@ -61,7 +61,7 @@ export default function SmartSuggestions({ tableId, onAdded }) {
         </div>
       )}
       {suggestions.map((s, i) => (
-        <div key={i} style={{ padding: "10px 0", borderBottom: i < suggestions.length - 1 ? "1px solid var(--border-light)" : "none" }} data-testid={`suggest-item-${i}`}>
+        <div key={s.title + s.date} style={{ padding: "10px 0", borderBottom: i < suggestions.length - 1 ? "1px solid var(--border-light)" : "none" }} data-testid={`suggest-item-${i}`}>
           <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: s.color || "#AF52DE", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Calendar size={14} />

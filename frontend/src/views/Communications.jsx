@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { Mail, Send, Star, Inbox, Trash2, MessageSquare, Radio, X, Reply } from "lucide-react";
 import EmptyState from "../components/rt/EmptyState";
 import HelpTip from "../components/rt/HelpTip";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
+import UserAvatar from "../components/UserAvatar";
 
 export default function Communications({ tables, onVideoCall }) {
   const [tab, setTab] = useState("email");
@@ -39,14 +40,19 @@ function EmailPane() {
   const [members, setMembers] = useState([]);
   const [form, setForm] = useState({ to_user: "", subject: "", body: "" });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const { data } = await api.get(`/emails?folder=${folder}`);
       setEmails(data || []);
-    } catch { /* ignore */ }
-  };
-  useEffect(() => { load(); }, [folder]);
-  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])); }, []);
+    } catch (err) {
+      console.error("Failed to load emails:", err);
+    }
+  }, [folder]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])).catch((err) => console.error("Failed to load members:", err)); }, []);
+
+  const filteredMembers = useMemo(() => members.filter((m) => m.id !== user?.id), [members, user?.id]);
 
   const open = async (e) => {
     setSelected(e);
@@ -60,43 +66,34 @@ function EmailPane() {
   };
 
   const send = async () => {
+    if (!form.to_user || !form.subject || !form.body) return toast.error("Fill all fields");
     try {
       await api.post("/emails", form);
-      toast.success("Email sent");
-      setComposing(false);
-      setForm({ to_user: "", subject: "", body: "" });
-      load();
+      toast.success("Sent");
+      setComposing(false); setForm({ to_user: "", subject: "", body: "" }); load();
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "180px 320px 1fr", minHeight: 520 }}>
-      <div style={{ borderRight: "1px solid var(--border-light)", padding: 10 }}>
-        <button className="btn btn-primary" onClick={() => setComposing(true)} data-testid="email-compose-btn" style={{ width: "100%", marginBottom: 12 }}>Compose</button>
-        {["inbox", "sent", "starred", "trash"].map((f) => (
-          <div key={f} onClick={() => setFolder(f)} data-testid={`email-folder-${f}`} style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, background: folder === f ? "var(--bg-tertiary)" : "transparent", fontWeight: folder === f ? 600 : 400, color: "var(--text-primary)" }}>
-            {f === "inbox" && <Inbox size={13} />}
-            {f === "sent" && <Send size={13} />}
-            {f === "starred" && <Star size={13} />}
-            {f === "trash" && <Trash2 size={13} />}
-            <span style={{ textTransform: "capitalize" }}>{f}</span>
-          </div>
-        ))}
-      </div>
-
+    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", minHeight: 520 }}>
       <div style={{ borderRight: "1px solid var(--border-light)", overflowY: "auto" }}>
-        {emails.length === 0 ? (
-          <EmptyState icon={<Inbox size={26} />} title="Inbox zero" subtitle="You're all caught up." testId="email-empty" />
-        ) : emails.map((e) => (
-          <div key={e.id} onClick={() => open(e)} data-testid={`email-item-${e.id}`} style={{ padding: 12, borderBottom: "1px solid var(--border-light)", cursor: "pointer", background: selected?.id === e.id ? "var(--bg-tertiary)" : "transparent", borderLeft: !e.read ? "3px solid var(--mac-blue)" : "3px solid transparent" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div className="avatar" style={{ width: 28, height: 28, background: "var(--mac-blue)", fontSize: 10 }}>{e.from_initials}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: e.read ? 400 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder === "sent" ? e.to_name : e.from_name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}</div>
-              </div>
-              {e.starred && <Star size={12} fill="var(--mac-yellow)" color="var(--mac-yellow)" />}
-            </div>
+        <div style={{ display: "flex", borderBottom: "1px solid var(--border-light)" }}>
+          {["inbox", "sent", "starred", "trash"].map((f) => (
+            <button key={f} className={`tab ${folder === f ? "active" : ""}`} onClick={() => { setFolder(f); setSelected(null); }} data-testid={`email-folder-${f}`} style={{ flex: 1, fontSize: 10, padding: "8px 4px" }}>
+              {f === "inbox" && <Inbox size={11} style={{ marginRight: 2, verticalAlign: -1 }} />}
+              {f === "starred" && <Star size={11} style={{ marginRight: 2, verticalAlign: -1 }} />}
+              {f === "trash" && <Trash2 size={11} style={{ marginRight: 2, verticalAlign: -1 }} />}
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: 8 }}>
+          <button className="btn btn-primary" onClick={() => setComposing(true)} style={{ width: "100%", fontSize: 11 }} data-testid="email-compose-btn"><Mail size={13} /> Compose</button>
+        </div>
+        {emails.map((e) => (
+          <div key={e.id} onClick={() => open(e)} data-testid={`email-item-${e.id}`} style={{ padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid var(--border-light)", background: selected?.id === e.id ? "var(--bg-tertiary)" : "transparent", opacity: e.read ? 0.7 : 1 }}>
+            <div style={{ fontSize: 12, fontWeight: e.read ? 400 : 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}</div>
+            <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>{e.from_name}</div>
           </div>
         ))}
       </div>
@@ -111,7 +108,7 @@ function EmailPane() {
             <label style={lbl}>To</label>
             <select className="input" value={form.to_user} onChange={(e) => setForm({ ...form, to_user: e.target.value })} data-testid="email-to-select" style={{ margin: "6px 0 10px" }}>
               <option value="">Select member…</option>
-              {members.filter((m) => m.id !== user?.id).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {filteredMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
             <label style={lbl}>Subject</label>
             <input className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} data-testid="email-subject-input" style={{ margin: "6px 0 10px" }} />
@@ -154,7 +151,9 @@ function TextsPane() {
   const [thread, setThread] = useState([]);
   const [input, setInput] = useState("");
 
-  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])); }, []);
+  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])).catch((err) => console.error("Failed to load members:", err)); }, []);
+
+  const filteredMembers = useMemo(() => members.filter((m) => m.id !== user?.id), [members, user?.id]);
 
   const loadThread = async (t) => {
     setTarget(t);
@@ -173,9 +172,9 @@ function TextsPane() {
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", minHeight: 520 }}>
       <div style={{ borderRight: "1px solid var(--border-light)", overflowY: "auto" }}>
         <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Contacts</div>
-        {members.filter((m) => m.id !== user?.id).map((m) => (
+        {filteredMembers.map((m) => (
           <div key={m.id} onClick={() => loadThread(m)} data-testid={`texts-contact-${m.id}`} style={{ padding: 10, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: target?.id === m.id ? "var(--bg-tertiary)" : "transparent", borderBottom: "1px solid var(--border-light)" }}>
-            <div className="avatar" style={{ width: 32, height: 32, background: m.color, fontSize: 11 }}>{m.initials}</div>
+            <UserAvatar user={m} size={32} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)" }}>SMS</div>
@@ -192,7 +191,12 @@ function TextsPane() {
             <div style={{ flex: 1, padding: 14, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
               {thread.length === 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>No messages yet.</div>}
               {thread.map((m) => (
-                <div key={m.id} className={`bubble ${m.from_user === user?.id ? "me" : "them"}`}>{m.text}</div>
+                <div key={m.id} className={`bubble ${m.from_user === user?.id ? "me" : "them"}`}>
+                  {m.text}
+                  {m.from_user === user?.id && (
+                    <div style={{ fontSize: 9, opacity: 0.5, textAlign: "right", marginTop: 2 }}>{m.read ? "Read" : "Sent"}</div>
+                  )}
+                </div>
               ))}
             </div>
             <div style={{ padding: 10, borderTop: "1px solid var(--border-light)", display: "flex", gap: 6 }}>
@@ -217,7 +221,10 @@ function ChatPane() {
 function WalkiePreview({ onVideoCall }) {
   const { user } = useAuth();
   const [members, setMembers] = useState([]);
-  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])); }, []);
+  useEffect(() => { api.get("/members").then((r) => setMembers(r.data || [])).catch((err) => console.error("Failed to load members:", err)); }, []);
+
+  const onlineMembers = useMemo(() => members.filter((m) => m.status === "online" && m.id !== user?.id), [members, user?.id]);
+
   const ping = async (m) => {
     try { await api.post("/walkie/ping", { to_user: m.id }); toast.success(`Pinged ${m.name}`); }
     catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
@@ -225,12 +232,12 @@ function WalkiePreview({ onVideoCall }) {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>Online members available on the walkie:</div>
-      {members.filter((m) => m.status === "online" && m.id !== user?.id).map((m) => (
+      {onlineMembers.map((m) => (
         <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border-light)" }}>
-          <div className="avatar" style={{ width: 32, height: 32, background: m.color, fontSize: 11 }}>{m.initials}</div>
+          <UserAvatar user={m} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
-            <div style={{ fontSize: 10, color: "var(--mac-green)" }}>● Online</div>
+            <div style={{ fontSize: 10, color: "var(--mac-green)" }}>Online</div>
           </div>
           <button className="btn btn-secondary" onClick={() => ping(m)} data-testid={`walkie-ping-${m.id}`}><Radio size={13} /> Talk</button>
           <button className="btn btn-secondary" onClick={() => onVideoCall?.(m)} data-testid={`walkie-video-${m.id}`}>Video</button>

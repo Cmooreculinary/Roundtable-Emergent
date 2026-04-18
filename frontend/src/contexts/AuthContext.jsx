@@ -52,8 +52,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await api.post("/auth/logout");
-    } catch {
-      /* no-op */
+    } catch (err) {
+      console.error("Logout API error (non-blocking):", err);
     }
     setUser(false);
   };
