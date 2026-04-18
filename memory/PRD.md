@@ -209,3 +209,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 9 (Dark Default + Golden Light + Event Reminders):** Backend 13/13 (100%), Frontend 9/9 (100%) — zero regressions
 - **Iteration 10 (Avatars + File Viewer + Co-Viewing):** Backend 17/17 (100%), Frontend 100% — zero regressions
 - **Iteration 11 (Enhanced Onboarding):** Backend 13/13 (100%), Frontend 100% — zero regressions
+- **Iteration 12 (One-Sheet Polish: Avatars everywhere, read receipts, two-tone beeps, drag highlight, upload URL fix):** Backend 11/11 (100%), Frontend 100% — zero regressions
