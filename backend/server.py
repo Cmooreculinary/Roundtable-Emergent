@@ -871,7 +871,7 @@ async def delete_table(table_id: str, user: dict = Depends(get_current_user)):
 @api.get("/tables/{table_id}/items")
 async def list_items(table_id: str, user: dict = Depends(get_current_user)):
     await ensure_table_member(table_id, user["id"])
-    items = await db.shared_items.find({"table_id": table_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    items = await db.shared_items.find({"table_id": table_id, "deleted_at": {"$exists": False}}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return items
 
 
@@ -908,7 +908,7 @@ async def delete_item(table_id: str, item_id: str, user: dict = Depends(get_curr
     item = await db.shared_items.find_one({"id": item_id, "table_id": table_id}, {"_id": 0})
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    await db.shared_items.delete_one({"id": item_id})
+    await soft_delete("shared_items", item_id, user["id"])
     return {"ok": True}
 
 
@@ -1050,13 +1050,13 @@ async def list_emails(
     if folder not in ("inbox", "sent", "starred", "trash"):
         raise HTTPException(status_code=400, detail="Invalid folder")
     if folder == "inbox":
-        q = {"to_user": user["id"], "folder": {"$ne": "trash"}}
+        q = {"to_user": user["id"], "folder": {"$ne": "trash"}, "deleted_at": {"$exists": False}}
     elif folder == "sent":
-        q = {"from_user": user["id"], "folder": {"$ne": "trash"}}
+        q = {"from_user": user["id"], "folder": {"$ne": "trash"}, "deleted_at": {"$exists": False}}
     elif folder == "starred":
-        q = {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "starred": True}
+        q = {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "starred": True, "deleted_at": {"$exists": False}}
     else:
-        q = {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "folder": "trash"}
+        q = {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "folder": "trash", "deleted_at": {"$exists": False}}
     emails = await db.emails.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
     # Hydrate from_user_name/to_user_name
     for e in emails:
@@ -1147,7 +1147,7 @@ async def send_text(payload: TextIn, user: dict = Depends(get_current_user)):
 async def list_events(user: dict = Depends(get_current_user)):
     memberships = await db.table_members.find({"user_id": user["id"]}, {"_id": 0}).to_list(500)
     table_ids = [m["table_id"] for m in memberships]
-    q = {"$or": [{"created_by": user["id"]}, {"table_id": {"$in": table_ids}}]}
+    q = {"$or": [{"created_by": user["id"]}, {"table_id": {"$in": table_ids}}], "deleted_at": {"$exists": False}}
     events = await db.events.find(q, {"_id": 0}).sort("date", 1).to_list(500)
     # Expand recurring events into virtual forward instances
     expanded = _expand_recurring(events, days_forward=90)
@@ -1200,14 +1200,14 @@ async def delete_event(event_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Event not found")
     if ev["created_by"] != user["id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
-    await db.events.delete_one({"id": event_id})
+    await soft_delete("events", event_id, user["id"])
     return {"ok": True}
 
 
 # ---------- Notifications ----------
 @api.get("/notifications")
 async def list_notifications(user: dict = Depends(get_current_user)):
-    notes = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    notes = await db.notifications.find({"user_id": user["id"], "deleted_at": {"$exists": False}}, {"_id": 0}).sort("created_at", -1).to_list(200)
     # hydrate from_user_name
     for n in notes:
         if n.get("from_user"):
@@ -1293,7 +1293,7 @@ async def preview_invite(code: str):
 
 @api.get("/invites")
 async def list_invites(table_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    q: dict = {"created_by": user["id"]}
+    q: dict = {"created_by": user["id"], "deleted_at": {"$exists": False}}
     if table_id:
         q["table_id"] = table_id
     invites = await db.invites.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
@@ -1370,7 +1370,7 @@ async def join_invite(payload: InviteJoinIn, user: dict = Depends(get_current_us
 # ---------- Contacts ----------
 @api.get("/contacts")
 async def list_contacts(user: dict = Depends(get_current_user)):
-    contacts = await db.contacts.find({"owner_id": user["id"]}, {"_id": 0}).sort("name", 1).to_list(500)
+    contacts = await db.contacts.find({"owner_id": user["id"], "deleted_at": {"$exists": False}}, {"_id": 0}).sort("name", 1).to_list(500)
     # Mark whether each contact's email exists as a member
     for c in contacts:
         if c.get("email"):
@@ -1758,7 +1758,7 @@ async def get_call_history(user: dict = Depends(get_current_user)):
     """Get call history for the current user (last 30 days, per-user)."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     logs = await db.call_logs.find(
-        {"participants": user["id"], "started_at": {"$gte": cutoff}},
+        {"participants": user["id"], "started_at": {"$gte": cutoff}, "deleted_at": {"$exists": False}},
         {"_id": 0},
     ).sort("started_at", -1).to_list(200)
 
@@ -1780,6 +1780,185 @@ async def get_call_history(user: dict = Depends(get_current_user)):
         else:
             log["target"] = None
     return logs
+
+
+# ---------- Soft Delete / Trash System ----------
+# Items moved to trash get deleted_at timestamp. Auto-purge after 30 days.
+async def soft_delete(collection_name: str, item_id: str, user_id: str):
+    """Move an item to trash by setting deleted_at. Returns True if found."""
+    result = await db[collection_name].update_one(
+        {"id": item_id},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user_id}},
+    )
+    return result.modified_count > 0
+
+
+async def restore_from_trash(collection_name: str, item_id: str):
+    """Restore a trashed item by removing deleted_at."""
+    result = await db[collection_name].update_one(
+        {"id": item_id},
+        {"$unset": {"deleted_at": "", "deleted_by": ""}},
+    )
+    return result.modified_count > 0
+
+
+async def permanent_delete(collection_name: str, item_id: str):
+    """Permanently remove an item."""
+    result = await db[collection_name].delete_one({"id": item_id})
+    return result.deleted_count > 0
+
+
+async def clear_trash(collection_name: str, query: dict):
+    """Permanently delete all trashed items matching query."""
+    query["deleted_at"] = {"$exists": True}
+    result = await db[collection_name].delete_many(query)
+    return result.deleted_count
+
+
+# ---------- Trash REST Endpoints ----------
+@api.post("/trash/restore")
+async def restore_item(collection: str = "", item_id: str = "", user: dict = Depends(get_current_user)):
+    if not collection or not item_id:
+        raise HTTPException(status_code=400, detail="collection and item_id required")
+    allowed = ["invites", "emails", "messages", "call_logs", "shared_items", "events", "contacts", "notifications"]
+    if collection not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid collection: {collection}")
+    ok = await restore_from_trash(collection, item_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item not found in trash")
+    return {"ok": True}
+
+
+@api.get("/trash")
+async def list_trash(collection: Optional[str] = None, user: dict = Depends(get_current_user)):
+    """List trashed items for the current user across all or specific collections."""
+    results = {}
+    collections_to_check = {
+        "invites": {"created_by": user["id"], "deleted_at": {"$exists": True}},
+        "emails": {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "deleted_at": {"$exists": True}},
+        "messages": {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "deleted_at": {"$exists": True}},
+        "call_logs": {"participants": user["id"], "deleted_at": {"$exists": True}},
+        "shared_items": {"shared_by": user["id"], "deleted_at": {"$exists": True}},
+        "events": {"created_by": user["id"], "deleted_at": {"$exists": True}},
+        "contacts": {"owner_id": user["id"], "deleted_at": {"$exists": True}},
+        "notifications": {"user_id": user["id"], "deleted_at": {"$exists": True}},
+    }
+    if collection and collection in collections_to_check:
+        collections_to_check = {collection: collections_to_check[collection]}
+    for coll, query in collections_to_check.items():
+        items = await db[coll].find(query, {"_id": 0}).sort("deleted_at", -1).to_list(100)
+        if items:
+            results[coll] = items
+    return results
+
+
+@api.delete("/trash/purge")
+async def purge_trash(collection: Optional[str] = None, user: dict = Depends(get_current_user)):
+    """Permanently delete all trashed items for the current user."""
+    purged = {}
+    collections_to_purge = {
+        "invites": {"created_by": user["id"]},
+        "emails": {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}]},
+        "messages": {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}]},
+        "call_logs": {"participants": user["id"]},
+        "shared_items": {"shared_by": user["id"]},
+        "events": {"created_by": user["id"]},
+        "contacts": {"owner_id": user["id"]},
+        "notifications": {"user_id": user["id"]},
+    }
+    if collection and collection in collections_to_purge:
+        collections_to_purge = {collection: collections_to_purge[collection]}
+    for coll, base_query in collections_to_purge.items():
+        count = await clear_trash(coll, base_query)
+        if count:
+            purged[coll] = count
+    return {"purged": purged}
+
+
+# Individual delete endpoints for each resource type
+# NOTE: clear-all routes must come BEFORE {id} routes to avoid path parameter matching
+@api.delete("/invites/clear-all")
+async def clear_all_invites(user: dict = Depends(get_current_user)):
+    result = await db.invites.update_many(
+        {"created_by": user["id"], "deleted_at": {"$exists": False}},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user["id"]}},
+    )
+    return {"ok": True, "trashed": result.modified_count}
+
+
+@api.delete("/invites/{invite_id}")
+async def delete_invite(invite_id: str, user: dict = Depends(get_current_user)):
+    inv = await db.invites.find_one({"id": invite_id}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if inv.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your invite")
+    await soft_delete("invites", invite_id, user["id"])
+    return {"ok": True}
+
+
+@api.delete("/emails/{email_id}")
+async def delete_email(email_id: str, user: dict = Depends(get_current_user)):
+    email = await db.emails.find_one({"id": email_id}, {"_id": 0})
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    await soft_delete("emails", email_id, user["id"])
+    return {"ok": True}
+
+
+@api.delete("/messages/{message_id}")
+async def delete_message(message_id: str, user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"id": message_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await soft_delete("messages", message_id, user["id"])
+    return {"ok": True}
+
+
+@api.delete("/messages/clear/{with_user}")
+async def clear_conversation(with_user: str, user: dict = Depends(get_current_user)):
+    result = await db.messages.update_many(
+        {"$or": [
+            {"from_user": user["id"], "to_user": with_user},
+            {"from_user": with_user, "to_user": user["id"]},
+        ], "deleted_at": {"$exists": False}},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user["id"]}},
+    )
+    return {"ok": True, "trashed": result.modified_count}
+
+
+# NOTE: Routes without path params must come BEFORE routes with path params
+@api.delete("/calls/history")
+async def clear_call_history(user: dict = Depends(get_current_user)):
+    result = await db.call_logs.update_many(
+        {"participants": user["id"], "deleted_at": {"$exists": False}},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user["id"]}},
+    )
+    return {"ok": True, "trashed": result.modified_count}
+
+
+@api.delete("/calls/history/{call_id}")
+async def delete_call_log(call_id: str, user: dict = Depends(get_current_user)):
+    await soft_delete("call_logs", call_id, user["id"])
+    return {"ok": True}
+
+
+@api.delete("/contacts/{contact_id}")
+async def delete_contact(contact_id: str, user: dict = Depends(get_current_user)):
+    contact = await db.contacts.find_one({"id": contact_id, "owner_id": user["id"]}, {"_id": 0})
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    await soft_delete("contacts", contact_id, user["id"])
+    return {"ok": True}
+
+
+@api.delete("/notifications/clear-all")
+async def clear_all_notifications(user: dict = Depends(get_current_user)):
+    result = await db.notifications.update_many(
+        {"user_id": user["id"], "deleted_at": {"$exists": False}},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user["id"]}},
+    )
+    return {"ok": True, "trashed": result.modified_count}
 
 
 # ---------- Health ----------

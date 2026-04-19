@@ -1,0 +1,109 @@
+{
+  "summary": "Iteration 14 - Soft Delete / Trash System Tests Complete. All 19 backend tests passed. Fixed route ordering bug for /invites/clear-all and /calls/history. Frontend UI verified: Invites (Clear All + trash icons), Contacts (delete buttons), Communications (email Delete button), Call History (Clear button), Notifications (Clear All).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_soft_delete.py",
+    "/app/test_reports/pytest/pytest_results_iteration14.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed route ordering bug: /invites/clear-all and /calls/history routes must be defined BEFORE their parameterized counterparts (/invites/{invite_id} and /calls/history/{call_id}) to avoid path parameter matching 'clear-all' as an ID",
+    "Fixed InvitesView.jsx header layout: wrapped Clear All and New Invite buttons in a flex container for proper alignment"
+  ],
+  "updated_files": [
+    "/app/backend/server.py",
+    "/app/frontend/src/views/InvitesView.jsx",
+    "/app/backend/tests/test_soft_delete.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (All soft delete UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@roundtable.app / roundtable2026"
+  },
+  "seed_data_creation": "Test data created with TEST_ prefix for invites, emails, messages, contacts during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 14 complete - Soft Delete system fully tested. Key endpoints: DELETE /api/invites/{id}, DELETE /api/invites/clear-all, DELETE /api/emails/{id}, DELETE /api/messages/{id}, DELETE /api/messages/clear/{with_user}, DELETE /api/calls/history/{call_id}, DELETE /api/calls/history, DELETE /api/contacts/{contact_id}, DELETE /api/notifications/clear-all, POST /api/trash/restore, GET /api/trash, DELETE /api/trash/purge. All GET endpoints now filter out soft-deleted items (deleted_at exists). Frontend pages verified: Invites (/invites), Contacts (/contacts), Communications (/communications), Call History (/call-history), Notifications (/notifications).",
+  "features_verified": {
+    "soft_delete_endpoints": {
+      "DELETE /api/invites/{id}": "Sets deleted_at timestamp, returns {ok: true}",
+      "DELETE /api/invites/clear-all": "Trashes all user's invites, returns {ok: true, trashed: count}",
+      "DELETE /api/emails/{id}": "Soft deletes email",
+      "DELETE /api/messages/{id}": "Soft deletes message",
+      "DELETE /api/messages/clear/{with_user}": "Trashes entire conversation",
+      "DELETE /api/calls/history/{call_id}": "Soft deletes call log",
+      "DELETE /api/calls/history": "Clears all call history",
+      "DELETE /api/contacts/{contact_id}": "Soft deletes contact",
+      "DELETE /api/notifications/clear-all": "Trashes all notifications"
+    },
+    "trash_endpoints": {
+      "GET /api/trash": "Lists all trashed items grouped by collection",
+      "GET /api/trash?collection=X": "Lists trashed items for specific collection",
+      "POST /api/trash/restore?collection=X&item_id=Y": "Restores item from trash",
+      "DELETE /api/trash/purge": "Permanently deletes all trashed items",
+      "DELETE /api/trash/purge?collection=X": "Purges specific collection"
+    },
+    "get_endpoints_filter_deleted": {
+      "GET /api/invites": "Excludes items with deleted_at",
+      "GET /api/emails": "Excludes items with deleted_at",
+      "GET /api/contacts": "Excludes items with deleted_at",
+      "GET /api/notifications": "Excludes items with deleted_at",
+      "GET /api/calls/history": "Excludes items with deleted_at",
+      "GET /api/events": "Excludes items with deleted_at"
+    },
+    "frontend_ui": {
+      "invites_page": {
+        "clear_all_button": "data-testid='invites-clear-all' - Red button in header",
+        "trash_icons": "data-testid='invite-delete-{id}' - Red trash icon per row",
+        "new_invite_button": "data-testid='invites-new-btn' - Blue button in header"
+      },
+      "contacts_page": {
+        "delete_buttons": "data-testid='contact-delete-{id}' or 'contact-del-{id}' - Red trash icon per contact"
+      },
+      "communications_page": {
+        "email_delete_button": "data-testid='email-delete-btn' - Red Delete button next to Reply in email detail view"
+      },
+      "call_history_page": {
+        "clear_button": "data-testid='calls-clear-all' - Shown only when calls exist"
+      },
+      "notifications_page": {
+        "clear_all_button": "data-testid='notif-clear-all' - Shown only when notifications exist"
+      }
+    },
+    "regression": {
+      "login": "Working with admin@roundtable.app / roundtable2026",
+      "all_pages_load": true
+    }
+  },
+  "bugs_fixed": [
+    {
+      "issue": "Route ordering bug - /invites/clear-all matched as /invites/{invite_id}",
+      "fix": "Moved clear-all route BEFORE parameterized route in server.py",
+      "file": "/app/backend/server.py"
+    },
+    {
+      "issue": "Route ordering bug - /calls/history matched as /calls/history/{call_id}",
+      "fix": "Moved /calls/history route BEFORE /calls/history/{call_id} in server.py",
+      "file": "/app/backend/server.py"
+    },
+    {
+      "issue": "InvitesView header layout broken - 3 elements with space-between",
+      "fix": "Wrapped Clear All and New Invite buttons in flex container",
+      "file": "/app/frontend/src/views/InvitesView.jsx"
+    }
+  ],
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

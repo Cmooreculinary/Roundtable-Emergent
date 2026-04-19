@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Search, Check, UserPlus, Plus, MessageSquare, Phone, Mail } from "lucide-react";
+import { Search, Check, UserPlus, Plus, MessageSquare, Phone, Mail, Trash2 } from "lucide-react";
 import EmptyState from "../components/rt/EmptyState";
 import HelpTip from "../components/rt/HelpTip";
 import { toast } from "sonner";
@@ -33,6 +33,12 @@ export default function ContactsView({ onAdd, onInvite }) {
     } finally {
       setSmsBusy(false);
     }
+  };
+
+  const deleteContact = async (c) => {
+    await api.delete(`/contacts/${c.id}`);
+    toast.success(`${c.name} removed`);
+    load();
   };
 
   const matched = contacts.filter((c) => (c.name || "").toLowerCase().includes(query.toLowerCase()));
@@ -91,12 +97,12 @@ export default function ContactsView({ onAdd, onInvite }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Section title={`On Round Table (${onApp.length})`} emptyMsg="Nobody from your contacts is on yet." color="var(--mac-green)">
             {onApp.map((c) => (
-              <Row key={c.id} contact={c} isMember />
+              <Row key={c.id} contact={c} isMember onDelete={() => deleteContact(c)} />
             ))}
           </Section>
           <Section title={`Not on Round Table (${offApp.length})`} emptyMsg="Everyone's already in." color="var(--mac-blue)">
             {offApp.map((c) => (
-              <Row key={c.id} contact={c} onInvite={onInvite} smsEnabled={bridgeStatus.sms_configured} emailEnabled={bridgeStatus.email_configured} onSms={(contact) => setSmsTarget(contact)} />
+              <Row key={c.id} contact={c} onInvite={onInvite} smsEnabled={bridgeStatus.sms_configured} emailEnabled={bridgeStatus.email_configured} onSms={(contact) => setSmsTarget(contact)} onDelete={() => deleteContact(c)} />
             ))}
           </Section>
         </div>
@@ -140,7 +146,7 @@ function Section({ title, emptyMsg, color, children }) {
   );
 }
 
-function Row({ contact, isMember, onInvite, smsEnabled, emailEnabled, onSms }) {
+function Row({ contact, isMember, onInvite, smsEnabled, emailEnabled, onSms, onDelete }) {
   const init = (contact.name || "?").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border-light)" }} data-testid={`contact-${contact.id}`}>
@@ -153,7 +159,10 @@ function Row({ contact, isMember, onInvite, smsEnabled, emailEnabled, onSms }) {
         <div style={{ fontSize: 11, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email || contact.phone || "No contact info"}</div>
       </div>
       {isMember ? (
-        <button className="btn btn-secondary" data-testid={`contact-chat-${contact.id}`}><MessageSquare size={12} /></button>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="btn btn-secondary" data-testid={`contact-chat-${contact.id}`}><MessageSquare size={12} /></button>
+          <button className="btn btn-ghost" onClick={onDelete} data-testid={`contact-delete-${contact.id}`} style={{ color: "var(--mac-red)", padding: 4 }}><Trash2 size={12} /></button>
+        </div>
       ) : (
         <div style={{ display: "flex", gap: 4 }}>
           {smsEnabled && contact.phone && (
@@ -162,6 +171,7 @@ function Row({ contact, isMember, onInvite, smsEnabled, emailEnabled, onSms }) {
             </button>
           )}
           <button className="btn btn-primary" onClick={onInvite} data-testid={`contact-invite-${contact.id}`}>Invite</button>
+          <button className="btn btn-ghost" onClick={onDelete} data-testid={`contact-del-${contact.id}`} style={{ color: "var(--mac-red)", padding: 4 }}><Trash2 size={12} /></button>
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
-import { Phone, Video, Radio, Clock, Users, PhoneCall, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Phone, Video, Radio, Clock, Users, PhoneCall, ArrowUpRight, ArrowDownLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "../components/rt/EmptyState";
 
@@ -65,7 +65,12 @@ export default function CallHistoryView({ onVideoCall }) {
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Call History</h1>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Last 30 days</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Last 30 days</div>
+          {calls.length > 0 && (
+            <button className="btn btn-secondary" onClick={async () => { if (window.confirm("Move all call history to trash?")) { await api.delete("/calls/history"); toast.success("Call history cleared"); load(); }}} data-testid="calls-clear-all" style={{ color: "var(--mac-red)", fontSize: 11 }}><Trash2 size={12} /> Clear</button>
+          )}
+        </div>
       </div>
 
       {calls.length === 0 ? (

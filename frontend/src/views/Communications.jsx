@@ -134,7 +134,10 @@ function EmailPane() {
               </div>
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>{selected.body}</div>
-            <button className="btn btn-secondary" style={{ marginTop: 20 }} onClick={() => { setComposing(true); setSelected(null); setForm({ to_user: selected.from_user, subject: `Re: ${selected.subject}`, body: `\n\n> ${selected.body}` }); }} data-testid="email-reply-btn"><Reply size={13} /> Reply</button>
+            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+              <button className="btn btn-secondary" onClick={() => { setComposing(true); setSelected(null); setForm({ to_user: selected.from_user, subject: `Re: ${selected.subject}`, body: `\n\n> ${selected.body}` }); }} data-testid="email-reply-btn"><Reply size={13} /> Reply</button>
+              <button className="btn btn-secondary" onClick={async () => { await api.delete(`/emails/${selected.id}`); toast.success("Email trashed"); setSelected(null); load(); }} data-testid="email-delete-btn" style={{ color: "var(--mac-red)" }}><Trash2 size={13} /> Delete</button>
+            </div>
           </div>
         ) : (
           <EmptyState icon={<Mail size={28} />} title="Select an email" subtitle="Click an email from the list to read it." testId="email-no-selection" />

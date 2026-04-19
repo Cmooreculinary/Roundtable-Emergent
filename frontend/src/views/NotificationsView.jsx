@@ -1,11 +1,19 @@
 import React from "react";
 import { api } from "../lib/api";
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, Trash2 } from "lucide-react";
 import EmptyState from "../components/rt/EmptyState";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export default function NotificationsView({ notifications, onRefresh }) {
   const markAll = async () => { await api.post("/notifications/read_all"); onRefresh?.(); };
+  const clearAll = async () => {
+    if (window.confirm("Move all notifications to trash?")) {
+      await api.delete("/notifications/clear-all");
+      toast.success("Notifications cleared");
+      onRefresh?.();
+    }
+  };
 
   const timeAgo = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
 
@@ -14,6 +22,7 @@ export default function NotificationsView({ notifications, onRefresh }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Notifications</h1>
         <button className="btn btn-secondary" onClick={markAll} data-testid="notif-mark-all"><Check size={14} /> Mark all read</button>
+        {notifications.length > 0 && <button className="btn btn-secondary" onClick={clearAll} data-testid="notif-clear-all" style={{ color: "var(--mac-red)" }}><Trash2 size={14} /> Clear All</button>}
       </div>
       {notifications.length === 0 ? (
         <EmptyState icon={<Bell size={28} />} title="Nothing here yet" subtitle="When things happen, you'll see them here." testId="notif-empty" />

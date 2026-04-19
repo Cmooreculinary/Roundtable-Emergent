@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { Copy, Plus, Users, Trophy, Phone, X, Send } from "lucide-react";
+import { Copy, Plus, Users, Trophy, Phone, X, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import HelpTip from "../components/rt/HelpTip";
 
@@ -63,7 +63,10 @@ export default function InvitesView({ tables, onOpenInvite }) {
       <HelpTip section="invite" text="Generate unique invite codes. Share them anywhere. Track usage." />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Invites & Referrals</h1>
-        <button className="btn btn-primary" onClick={onOpenInvite} data-testid="invites-new-btn"><Plus size={14} /> New Invite</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-secondary" onClick={async () => { if (window.confirm("Move all invites to trash?")) { await api.delete("/invites/clear-all"); toast.success("All invites trashed"); load(); }}} data-testid="invites-clear-all" style={{ color: "var(--mac-red)" }}><Trash2 size={14} /> Clear All</button>
+          <button className="btn btn-primary" onClick={onOpenInvite} data-testid="invites-new-btn"><Plus size={14} /> New Invite</button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 14 }}>
@@ -118,6 +121,7 @@ export default function InvitesView({ tables, onOpenInvite }) {
                     </button>
                   )}
                   <button className="btn btn-secondary" onClick={() => copy(inv.code)} data-testid={`invite-copy-${inv.id}`}><Copy size={12} /></button>
+                  <button className="btn btn-ghost" onClick={async () => { await api.delete(`/invites/${inv.id}`); toast.success("Invite trashed"); load(); }} data-testid={`invite-delete-${inv.id}`} style={{ color: "var(--mac-red)", padding: 4 }}><Trash2 size={12} /></button>
                 </div>
               );
             })}
