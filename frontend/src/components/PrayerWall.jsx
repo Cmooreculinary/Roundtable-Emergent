@@ -23,7 +23,7 @@ export default function PrayerWall({ tableId, onShare }) {
     try {
       const { data } = await api.get(`/tables/${tableId}/prayers`);
       setItems(data || []);
-    } catch { /* ignore */ }
+    } catch (err) { console.error("Failed to load prayers:", err); }
     finally { setLoading(false); }
   }, [tableId]);
 
@@ -48,10 +48,10 @@ export default function PrayerWall({ tableId, onShare }) {
       if (data.action === "added" && type === "praying") {
         toast.success("🙏 You're lifting them up");
       }
-    } catch { toast.error("Couldn't save reaction"); }
+    } catch (err) { console.error("Reaction error:", err); toast.error("Couldn't save reaction"); }
   };
 
-  const timeAgo = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
+  const timeAgo = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch (err) { return ""; } };
 
   if (loading) {
     return <div className="card" style={{ padding: 20, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>Loading the wall…</div>;

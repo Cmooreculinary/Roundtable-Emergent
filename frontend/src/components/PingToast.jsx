@@ -12,7 +12,7 @@ function beep(freq = 880, dur = 0.18) {
     gain.gain.setValueAtTime(0.18, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     osc.start(); osc.stop(ctx.currentTime + dur);
-  } catch { /* no-op */ }
+  } catch (err) { /* audio context not available */ }
 }
 
 export default function PingToast({ ping, onAnswer, onDismiss }) {

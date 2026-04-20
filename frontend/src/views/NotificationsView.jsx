@@ -15,7 +15,7 @@ export default function NotificationsView({ notifications, onRefresh }) {
     }
   };
 
-  const timeAgo = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; } };
+  const timeAgo = (iso) => { try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch (err) { return ""; } };
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>

@@ -8,6 +8,7 @@ Tests for:
 5. Core CRUD operations still work (tables, events, messages)
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 from pathlib import Path
@@ -22,8 +23,8 @@ if _env_test.exists():
             os.environ.setdefault(k.strip(), v.strip().strip('"'))
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@roundtable.app")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "roundtable2026")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", ADMIN_EMAIL)
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", ADMIN_PASSWORD)
 
 
 class TestServerCompilation:

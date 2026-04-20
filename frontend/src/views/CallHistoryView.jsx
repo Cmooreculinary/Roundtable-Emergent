@@ -38,7 +38,7 @@ export default function CallHistoryView({ onVideoCall }) {
     try {
       const { data } = await api.get("/calls/history");
       setCalls(data || []);
-    } catch {
+    } catch (err) {
       toast.error("Could not load call history");
     } finally {
       setLoading(false);

@@ -1997,15 +1997,25 @@ async def suggest_events(table_id: str, user: dict = Depends(get_current_user)):
     t = await db.tables.find_one({"id": table_id}, {"_id": 0})
     if not t:
         raise HTTPException(status_code=404, detail="Table not found")
-
     if not EMERGENT_KEY:
         return {"suggestions": [], "error": "AI key not configured"}
 
+    prompt_data = await _build_suggest_prompt(t, table_id)
+    try:
+        raw = await _call_llm_suggest(table_id, prompt_data["system"], prompt_data["prompt"])
+        suggestions = _parse_suggestions(raw, t.get("color", "#007AFF"))
+        return {"suggestions": suggestions, "purpose": t.get("purpose", "other")}
+    except Exception as e:
+        logger.warning(f"AI suggest failed for table {table_id}: {e}")
+        return {"suggestions": [], "error": "suggestion temporarily unavailable"}
+
+
+async def _build_suggest_prompt(table: dict, table_id: str) -> dict:
+    """Build system + user prompt for event suggestions."""
     existing = await db.events.find({"table_id": table_id}, {"_id": 0}).sort("date", -1).limit(10).to_list(10)
     existing_summary = "\n".join([f"- {e['title']} on {e['date']}" for e in existing]) or "(none yet)"
-    purpose = t.get("purpose", "other")
+    purpose = table.get("purpose", "other")
     guidance = PURPOSE_GUIDANCE.get(purpose, PURPOSE_GUIDANCE["other"])
-
     today = datetime.now(timezone.utc).date().isoformat()
     system = (
         "You are the 'Round Table' scheduling helper. You propose warm, concrete, low-pressure event ideas for real-world groups. "
@@ -2014,76 +2024,114 @@ async def suggest_events(table_id: str, user: dict = Depends(get_current_user)):
         " Exactly 3 suggestions. Dates must be in the future (after today). Use 24-hour time."
     )
     prompt = (
-        f"Today is {today}.\n"
-        f"Table name: {t['name']}\n"
+        f"Today is {today}.\nTable name: {table['name']}\n"
         f"Table purpose: {purpose} — {guidance}\n"
         f"Recent events on this table:\n{existing_summary}\n\n"
         "Suggest 3 upcoming events that would genuinely serve this group. Keep titles short (2-6 words), "
         "descriptions one sentence, and 'reason' one short phrase on why it fits."
     )
+    return {"system": system, "prompt": prompt}
 
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = LlmChat(
-            api_key=EMERGENT_KEY,
-            session_id=f"rt-suggest-{table_id}",
-            system_message=system,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        response = await chat.send_message(UserMessage(text=prompt))
-        raw = str(response).strip()
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            if raw.lower().startswith("json"):
-                raw = raw[4:].lstrip()
-        import json as _j
-        data = _j.loads(raw)
-        suggestions = data.get("suggestions", [])
-        # Defensive validation
-        clean = []
-        for s in suggestions[:3]:
-            if not isinstance(s, dict):
-                continue
-            title = str(s.get("title", "")).strip()[:100]
-            date = str(s.get("date", "")).strip()
-            time = str(s.get("time", "12:00")).strip()
-            if not title or not date:
-                continue
-            if not (len(date) == 10 and date[4] == "-" and date[7] == "-"):
-                continue
-            clean.append({
-                "title": title,
-                "date": date,
-                "time": time if len(time) == 5 else "12:00",
-                "description": str(s.get("description", ""))[:280],
-                "reason": str(s.get("reason", ""))[:120],
-                "color": t.get("color", "#007AFF"),
-            })
-        return {"suggestions": clean, "purpose": purpose}
-    except Exception as e:
-        logger.warning(f"AI suggest failed for table {table_id}: {e}")
-        return {"suggestions": [], "error": "suggestion temporarily unavailable"}
+
+async def _call_llm_suggest(table_id: str, system: str, prompt: str) -> str:
+    """Call the LLM and return raw response text."""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    chat = LlmChat(
+        api_key=EMERGENT_KEY,
+        session_id=f"rt-suggest-{table_id}",
+        system_message=system,
+    ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+    response = await chat.send_message(UserMessage(text=prompt))
+    raw = str(response).strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:].lstrip()
+    return raw
+
+
+def _parse_suggestions(raw: str, color: str) -> list:
+    """Parse and validate LLM JSON response into clean suggestions."""
+    import json as _j
+    data = _j.loads(raw)
+    clean = []
+    for s in data.get("suggestions", [])[:3]:
+        if not isinstance(s, dict):
+            continue
+        title = str(s.get("title", "")).strip()[:100]
+        date = str(s.get("date", "")).strip()
+        time_val = str(s.get("time", "12:00")).strip()
+        if not title or not date or len(date) != 10 or date[4] != "-" or date[7] != "-":
+            continue
+        clean.append({
+            "title": title, "date": date,
+            "time": time_val if len(time_val) == 5 else "12:00",
+            "description": str(s.get("description", ""))[:280],
+            "reason": str(s.get("reason", ""))[:120],
+            "color": color,
+        })
+    return clean
 
 
 # ---------- WebSocket ----------
 @app.websocket("/api/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    # Authenticate via cookie
-    token = websocket.cookies.get("rt_access")
-    if not token:
-        # Allow ?token= fallback for clients that can't send cookies
-        token = websocket.query_params.get("token")
+async def _authenticate_ws(websocket: WebSocket) -> str:
+    """Authenticate WebSocket connection. Returns user_id or raises."""
+    token = websocket.cookies.get("rt_access") or websocket.query_params.get("token")
     if not token:
         await websocket.close(code=4401)
-        return
+        return ""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             await websocket.close(code=4401)
-            return
-        user_id = payload["sub"]
+            return ""
+        return payload["sub"]
     except jwt.PyJWTError:
         await websocket.close(code=4401)
+        return ""
+
+
+async def _route_ws_message(user_id: str, msg: dict, websocket: WebSocket):
+    """Route a single WS message to the appropriate handler."""
+    msg_type = msg.get("type")
+    if msg_type == "ping":
+        await websocket.send_text(_json.dumps({"type": "pong"}))
+    elif msg_type == "typing" and msg.get("to_user"):
+        await ws_manager.send_to_user(msg["to_user"], {
+            "type": "typing", "from_user": user_id, "table_id": msg.get("table_id")
+        })
+    elif msg_type in ("call_start", "call_join", "call_leave", "webrtc_offer", "webrtc_answer", "webrtc_ice", "walkie_talk_state"):
+        await _handle_webrtc_message(user_id, msg)
+    elif msg_type in ("present_start", "present_sync", "present_stop"):
+        table_id = msg.get("table_id")
+        if table_id:
+            await ws_manager.broadcast_to_table(table_id, {**msg, "from_user": user_id}, exclude_user=user_id)
+
+
+async def _cleanup_ws_disconnect(user_id: str, websocket: WebSocket):
+    """Clean up active calls and disconnect user on WS close."""
+    call_id = user_call_map.pop(user_id, None)
+    if call_id and call_id in active_calls:
+        call = active_calls[call_id]
+        call["participants"].discard(user_id)
+        leaver = await db.users.find_one({"id": user_id}, {"_id": 0})
+        leaver_info = user_public(leaver) if leaver else {"id": user_id}
+        for pid in list(call["participants"]):
+            await ws_manager.send_to_user(pid, {
+                "type": "call_peer_left", "call_id": call_id,
+                "peer": leaver_info, "participants": list(call["participants"]),
+            })
+        if not call["participants"]:
+            await _finalize_call_log(call_id, call)
+            active_calls.pop(call_id, None)
+    await ws_manager.disconnect(user_id, websocket)
+
+
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    user_id = await _authenticate_ws(websocket)
+    if not user_id:
         return
 
     await ws_manager.connect(user_id, websocket)
@@ -2095,47 +2143,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 msg = _json.loads(data)
             except Exception:
                 continue
-            if msg.get("type") == "ping":
-                await websocket.send_text(_json.dumps({"type": "pong"}))
-            elif msg.get("type") == "typing" and msg.get("to_user"):
-                await ws_manager.send_to_user(msg["to_user"], {
-                    "type": "typing", "from_user": user_id, "table_id": msg.get("table_id")
-                })
-            elif msg.get("type") in (
-                "call_start", "call_join", "call_leave",
-                "webrtc_offer", "webrtc_answer", "webrtc_ice",
-                "walkie_talk_state",
-            ):
-                await _handle_webrtc_message(user_id, msg)
-            elif msg.get("type") in ("present_start", "present_sync", "present_stop"):
-                # Relay presentation events to all table members
-                table_id = msg.get("table_id")
-                if table_id:
-                    payload = {**msg, "from_user": user_id}
-                    await ws_manager.broadcast_to_table(table_id, payload, exclude_user=user_id)
+            await _route_ws_message(user_id, msg, websocket)
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"WS error for {user_id}: {e}")
     finally:
-        # Clean up any active calls for this user on disconnect
-        call_id = user_call_map.pop(user_id, None)
-        if call_id and call_id in active_calls:
-            call = active_calls[call_id]
-            call["participants"].discard(user_id)
-            leaver = await db.users.find_one({"id": user_id}, {"_id": 0})
-            leaver_info = user_public(leaver) if leaver else {"id": user_id}
-            for pid in list(call["participants"]):
-                await ws_manager.send_to_user(pid, {
-                    "type": "call_peer_left",
-                    "call_id": call_id,
-                    "peer": leaver_info,
-                    "participants": list(call["participants"]),
-                })
-            if not call["participants"]:
-                await _finalize_call_log(call_id, call)
-                active_calls.pop(call_id, None)
-        await ws_manager.disconnect(user_id, websocket)
+        await _cleanup_ws_disconnect(user_id, websocket)
 
 
 app.include_router(api)

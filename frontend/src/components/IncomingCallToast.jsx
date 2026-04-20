@@ -19,7 +19,7 @@ function ringTone() {
     play(880, 0, 0.2);
     play(880, 0.3, 0.2);
     play(1100, 0.6, 0.3);
-  } catch { /* no-op */ }
+  } catch (err) { /* audio context not available */ }
 }
 
 export default function IncomingCallToast({ call, onAnswer, onDecline }) {

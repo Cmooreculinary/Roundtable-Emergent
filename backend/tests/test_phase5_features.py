@@ -13,6 +13,7 @@ Tests for:
 """
 
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import json
@@ -37,8 +38,8 @@ def session():
 def admin_auth(session):
     """Login as admin and return session with cookies"""
     resp = session.post(f"{BASE_URL}/api/auth/login", json={
-        "email": "admin@roundtable.app",
-        "password": "roundtable2026"
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
     })
     assert resp.status_code == 200, f"Admin login failed: {resp.text}"
     return session
@@ -52,7 +53,7 @@ def test_user_auth():
     
     # Try to register, if already exists, login
     email = "phase5_test_user@roundtable.app"
-    password = "testpass123"
+    password = TEST_PASSWORD
     name = "Phase5 Test User"
     
     resp = s.post(f"{BASE_URL}/api/auth/register", json={
@@ -341,13 +342,13 @@ class TestRegressionPhase1to4:
     def test_auth_login(self, session):
         """POST /api/auth/login should work"""
         resp = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert resp.status_code == 200
         data = resp.json()
         assert "user" in data
-        assert data["user"]["email"] == "admin@roundtable.app"
+        assert data["user"]["email"] == ADMIN_EMAIL
         print("✓ Auth login working")
     
     def test_tables_list(self, admin_auth):

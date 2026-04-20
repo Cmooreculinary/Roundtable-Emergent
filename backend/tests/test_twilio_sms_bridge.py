@@ -9,6 +9,7 @@ Tests:
 """
 
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 
@@ -22,8 +23,8 @@ class TestTwilioSMSBridge:
         """Login and get session for authenticated requests"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         yield
@@ -78,8 +79,8 @@ class TestRegressionCallHistory:
         """Login and get session for authenticated requests"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         yield
@@ -109,8 +110,8 @@ class TestRegressionCoreEndpoints:
         """Login and get session for authenticated requests"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         yield
@@ -123,7 +124,7 @@ class TestRegressionCoreEndpoints:
         assert resp.status_code == 200, f"Auth me failed: {resp.text}"
         data = resp.json()
         assert "user" in data, "Missing user field"
-        assert data["user"]["email"] == "admin@roundtable.app", f"Wrong email: {data['user']['email']}"
+        assert data["user"]["email"] == ADMIN_EMAIL, f"Wrong email: {data['user']['email']}"
         print(f"✓ Login verified: {data['user']['email']}")
     
     def test_tables_endpoint_works(self):

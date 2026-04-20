@@ -168,7 +168,7 @@ export default function Settings() {
             try {
               await updateMe({ avatar_url: url });
               toast.success(url ? "Avatar updated!" : "Switched to initials");
-            } catch { toast.error("Could not update avatar"); }
+            } catch (err) { console.error("Avatar update error:", err); toast.error("Could not update avatar"); }
           }}
           onClose={() => setShowAvatarPicker(false)}
         />

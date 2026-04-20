@@ -66,14 +66,14 @@ export default function MainShell() {
       const { data } = await api.get("/tables");
       setTables(data);
       if (data.length && !activeTableId) setActiveTableId(data[0].id);
-    } catch { /* ignore */ }
+    } catch (err) { console.error("Failed to load tables:", err); }
   }, [activeTableId]);
 
   const loadNotifications = useCallback(async () => {
     try {
       const { data } = await api.get("/notifications");
       setNotifications(data);
-    } catch { /* ignore */ }
+    } catch (err) { console.error("Failed to load notifications:", err); }
   }, []);
 
   useEffect(() => {

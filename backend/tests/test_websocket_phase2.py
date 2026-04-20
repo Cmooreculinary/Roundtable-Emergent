@@ -3,6 +3,7 @@ Round Table Phase 2 WebSocket Tests
 Tests WebSocket endpoint, presence, live broadcasts, and real-time features
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import time
@@ -14,8 +15,8 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 WS_URL = BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://') + '/api/ws'
 
 # Test credentials
-ADMIN_EMAIL = "admin@roundtable.app"
-ADMIN_PASSWORD = "roundtable2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 
 
 def get_auth_session_and_token():
@@ -323,7 +324,7 @@ class TestReferralJoinedBroadcast:
         unique_email = f"test_ws_join_{int(time.time())}@roundtable.app"
         reg_resp = new_user_session.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "WS Join User"
         })
         assert reg_resp.status_code == 200

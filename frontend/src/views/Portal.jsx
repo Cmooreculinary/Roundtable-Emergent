@@ -28,7 +28,7 @@ export default function Portal({ tables, notifications, onOpenInvite, onOpenShar
   const recentNotifications = notifications.slice(0, 4);
 
   const timeAgo = (iso) => {
-    try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch { return ""; }
+    try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); } catch (err) { return ""; }
   };
 
   return (
@@ -297,7 +297,7 @@ function SetupReminder({ user, onGoto, dismissed, onDismiss }) {
         <button className="btn btn-ghost" onClick={onDismiss} style={{ padding: 2 }} data-testid="setup-reminder-dismiss"><X size={14} /></button>
       </div>
     );
-  } catch {
+  } catch (err) {
     return null;
   }
 }

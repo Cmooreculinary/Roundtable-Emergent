@@ -3,6 +3,7 @@ Round Table API Backend Tests
 Tests all core endpoints: Auth, Users, Tables, Items, Messages, Emails, Events, Notifications, Invites, Contacts, Referrals
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import time
@@ -10,10 +11,10 @@ import time
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "admin@roundtable.app"
-ADMIN_PASSWORD = "roundtable2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 TEST_USER_EMAIL = "test_demo@roundtable.app"
-TEST_USER_PASSWORD = "demo12345"
+TEST_USER_PASSWORD = TEST_USER_PASSWORD
 TEST_USER_NAME = "Test Demo User"
 
 
@@ -65,7 +66,7 @@ class TestAuthEndpoints:
         unique_email = f"test_{int(time.time())}@roundtable.app"
         response = session.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Test User"
         })
         assert response.status_code == 200, f"Registration failed: {response.text}"
@@ -80,7 +81,7 @@ class TestAuthEndpoints:
         """Test registration with existing email returns 409"""
         response = requests.post(f"{BASE_URL}/api/auth/register", json={
             "email": ADMIN_EMAIL,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Duplicate User"
         })
         assert response.status_code == 409
@@ -344,7 +345,7 @@ class TestTableMembershipGuard:
         unique_email = f"test_other_{int(time.time())}@roundtable.app"
         other_session.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Other User"
         })
         
@@ -375,7 +376,7 @@ class TestTableMembershipGuard:
         unique_email = f"test_item_{int(time.time())}@roundtable.app"
         other_session.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Item User"
         })
         
@@ -809,7 +810,7 @@ class TestInvites:
         unique_email = f"test_join_{int(time.time())}@roundtable.app"
         user_session.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Join User"
         })
         

@@ -7,6 +7,7 @@ Tests for:
 """
 
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 
@@ -20,8 +21,8 @@ class TestAvatarAPI:
         """Login and get session"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         yield
@@ -95,8 +96,8 @@ class TestUserProfileAPI:
         """Login and get session"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200
         yield
@@ -136,8 +137,8 @@ class TestTableSharedItems:
         """Login and get session"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200
         yield
@@ -198,19 +199,19 @@ class TestRegressionAuth:
         """Test login with admin credentials works"""
         session = requests.Session()
         resp = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert resp.status_code == 200
         data = resp.json()
         assert "user" in data
-        assert data["user"]["email"] == "admin@roundtable.app"
+        assert data["user"]["email"] == ADMIN_EMAIL
     
     def test_login_with_wrong_password_fails(self):
         """Test login with wrong password returns 401"""
         session = requests.Session()
         resp = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
+            "email": ADMIN_EMAIL,
             "password": "wrongpassword"
         })
         assert resp.status_code == 401
@@ -224,8 +225,8 @@ class TestRegressionNavigation:
         """Login and get session"""
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert login_resp.status_code == 200
         yield

@@ -7,6 +7,7 @@ Tests for:
 4. AI event suggestions endpoint (POST /api/tables/{id}/suggest-events)
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import time
@@ -14,8 +15,8 @@ import time
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 
 # Test credentials
-ADMIN_EMAIL = "admin@roundtable.app"
-ADMIN_PASSWORD = "roundtable2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 
 class TestTablePurposeField:
     """Tests for table purpose field (Phase 3 feature)"""
@@ -325,7 +326,7 @@ class TestAISuggestEvents:
         unique_email = f"test_nonmember_{int(time.time())}@roundtable.app"
         reg_resp = new_client.post(f"{BASE_URL}/api/auth/register", json={
             "email": unique_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Non Member"
         })
         assert reg_resp.status_code == 200

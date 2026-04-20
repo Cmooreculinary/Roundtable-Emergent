@@ -37,7 +37,7 @@ export default function TableView({ onShare, onInvite, onVideoCall }) {
     try {
       const { data } = await api.get(`/messages?table_id=${id}`);
       setMessages(data || []);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('Load error:', err); }
   }, [id]);
 
   useEffect(() => {

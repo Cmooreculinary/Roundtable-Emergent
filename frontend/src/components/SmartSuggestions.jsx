@@ -35,7 +35,7 @@ export default function SmartSuggestions({ tableId, onAdded }) {
       toast.success(`Added "${s.title}" to the calendar`);
       setSuggestions((prev) => prev.filter((x) => x !== s));
       onAdded?.();
-    } catch {
+    } catch (err) {
       toast.error("Couldn't add event");
     }
   };

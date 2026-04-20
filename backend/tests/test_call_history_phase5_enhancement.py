@@ -3,14 +3,15 @@ Phase 5 Enhancement: Call History Tests
 Tests for GET /api/calls/history endpoint and related call log functionality
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 
 # Test credentials
-ADMIN_EMAIL = "admin@roundtable.app"
-ADMIN_PASSWORD = "roundtable2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 
 
 @pytest.fixture(scope="module")

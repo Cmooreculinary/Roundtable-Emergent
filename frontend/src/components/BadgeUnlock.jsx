@@ -41,12 +41,13 @@ export default function BadgeUnlock({ unlock, onClose }) {
       const body = `${shareText} ${url}`;
       if (navigator.share) {
         try { await navigator.share({ title: "Round Table", text: shareText, url }); }
-        catch { /* user cancelled */ }
+        catch (err) { console.error("Share cancelled:", err); }
       } else {
         try { await navigator.clipboard.writeText(body); toast.success("Invite copied — paste it anywhere"); }
-        catch { toast.success("Invite ready below"); }
+        catch (err) { console.error("Clipboard error:", err); toast.success("Invite ready below"); }
       }
-    } catch {
+    } catch (err) {
+      console.error("Share link error:", err);
       toast.error("Couldn't create share link");
     } finally { setSharing(false); }
   };

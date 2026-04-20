@@ -3,6 +3,7 @@ Test Suite for Soft Delete / Trash System - Iteration 14
 Tests: soft delete, restore, purge, clear-all for invites, emails, messages, calls, contacts, notifications
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import time
@@ -11,8 +12,8 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     BASE_URL = "https://community-hub-830.preview.emergentagent.com"
 
-ADMIN_EMAIL = "admin@roundtable.app"
-ADMIN_PASSWORD = "roundtable2026"
+ADMIN_EMAIL = ADMIN_EMAIL
+ADMIN_PASSWORD = ADMIN_PASSWORD
 
 
 @pytest.fixture(scope="module")

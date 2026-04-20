@@ -8,6 +8,7 @@ Tests for:
 - User profile updates (name, color, avatar_url, phone, auto_sms)
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 import time
@@ -23,7 +24,7 @@ class TestOnboardingFlow:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
         self.test_email = f"TEST_onboard_{int(time.time())}@roundtable.app"
-        self.test_password = "testpass123"
+        self.test_password = TEST_PASSWORD
         self.test_name = "Test Onboard User"
         yield
         # Cleanup: logout
@@ -146,7 +147,7 @@ class TestTableCreationDuringOnboarding:
         self.test_email = f"TEST_table_{int(time.time())}@roundtable.app"
         response = self.session.post(f"{BASE_URL}/api/auth/register", json={
             "email": self.test_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Table Test User"
         })
         assert response.status_code == 200
@@ -198,7 +199,7 @@ class TestInviteCodeDuringOnboarding:
         self.test_email = f"TEST_invite_{int(time.time())}@roundtable.app"
         response = self.session.post(f"{BASE_URL}/api/auth/register", json={
             "email": self.test_email,
-            "password": "testpass123",
+            "password": TEST_PASSWORD,
             "name": "Invite Test User"
         })
         assert response.status_code == 200
@@ -246,8 +247,8 @@ class TestExistingUserOnboardedStatus:
         
         # Login as admin
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         
         assert response.status_code == 200, f"Admin login failed: {response.text}"
@@ -272,8 +273,8 @@ class TestRegressionAPIs:
         
         # Login as admin
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         yield

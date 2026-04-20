@@ -3,6 +3,7 @@ Iteration 12 Backend Tests - Polish fixes verification
 Tests: Upload endpoint, file URLs, auth, and regression tests
 """
 import pytest
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_PASSWORD, TEST_USER_PASSWORD, BASE_URL
 import requests
 import os
 
@@ -22,15 +23,15 @@ class TestHealthAndAuth:
     def test_login_admin(self):
         """Test admin login works"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
         # API returns {"user": {...}} wrapper
         user = data.get("user", data)
         assert "id" in user
-        assert user.get("email") == "admin@roundtable.app"
+        assert user.get("email") == ADMIN_EMAIL
         print(f"Admin login successful: {user.get('name')}")
         return response.cookies
 
@@ -43,8 +44,8 @@ class TestUploadEndpoint:
         """Get authenticated session"""
         session = requests.Session()
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return session
@@ -85,8 +86,8 @@ class TestMembersAndMessages:
         """Get authenticated session"""
         session = requests.Session()
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return session
@@ -132,8 +133,8 @@ class TestTablesAndItems:
         """Get authenticated session"""
         session = requests.Session()
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return session
@@ -177,8 +178,8 @@ class TestUserProfile:
         """Get authenticated session"""
         session = requests.Session()
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return session
@@ -220,8 +221,8 @@ class TestWalkieEndpoints:
         """Get authenticated session"""
         session = requests.Session()
         response = session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@roundtable.app",
-            "password": "roundtable2026"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200
         return session

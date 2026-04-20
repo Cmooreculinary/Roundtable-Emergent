@@ -106,7 +106,7 @@ export async function startCall(options = {}) {
 
   try {
     localStream = await getMedia(type);
-  } catch {
+  } catch (err) {
     throw new Error("Could not access microphone" + (type === "video" ? "/camera" : ""));
   }
 
@@ -131,7 +131,7 @@ export async function joinCall(joinCallId, type = "video") {
 
   try {
     localStream = await getMedia(type);
-  } catch {
+  } catch (err) {
     throw new Error("Could not access microphone" + (type === "video" ? "/camera" : ""));
   }
 
@@ -149,7 +149,7 @@ export function leaveCall() {
 
 function cleanup() {
   peers.forEach(({ pc }) => {
-    try { pc.close(); } catch { /* ignore */ }
+    try { pc.close(); } catch (e) { console.error("PC close error:", e); }
   });
   peers.clear();
   stopLocalStream();
@@ -177,7 +177,7 @@ async function handlePeerLeft(data) {
   const peerId = data.peer?.id;
   if (peerId && peers.has(peerId)) {
     const { pc } = peers.get(peerId);
-    try { pc.close(); } catch { /* ignore */ }
+    try { pc.close(); } catch (e) { console.error("PC close error:", e); }
     peers.delete(peerId);
   }
   notifyStateChange("peer_left", data);

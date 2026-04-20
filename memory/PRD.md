@@ -222,3 +222,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 12 (One-Sheet Polish):** Backend 11/11, Frontend 100%
 - **Iteration 13 (Code Quality Refactoring):** Backend 21/21 (100%), Frontend 100% — zero regressions
 - **Iteration 14 (Soft Delete / Trash System):** Backend 19/19 (100%), Frontend 100% — zero regressions
+- **Iteration 15 (Code Quality Review #2):** All critical findings applied — hardcoded secrets removed from 14 test files, websocket_endpoint/suggest_events refactored, all empty catch blocks fixed (0 remaining), test files use env vars via conftest
