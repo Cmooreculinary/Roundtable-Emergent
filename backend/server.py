@@ -749,13 +749,14 @@ async def list_members(user: dict = Depends(get_current_user)):
     seen = {user["id"]}
     if table_ids:
         cursor = db.table_members.find({"table_id": {"$in": table_ids}}, {"_id": 0})
+        member_user_ids = set()
         async for m in cursor:
-            if m["user_id"] in seen:
-                continue
-            seen.add(m["user_id"])
-            u = await db.users.find_one({"id": m["user_id"]}, {"_id": 0})
-            if u:
-                members.append(user_public(u))
+            if m["user_id"] not in seen:
+                seen.add(m["user_id"])
+                member_user_ids.add(m["user_id"])
+        if member_user_ids:
+            batch = await db.users.find({"id": {"$in": list(member_user_ids)}}, {"_id": 0}).to_list(500)
+            members.extend(user_public(u) for u in batch)
     # Also include all other users to support discovery for contacts (limit 200)
     cursor = db.users.find({"id": {"$nin": list(seen)}}, {"_id": 0}).limit(200)
     async for u in cursor:
@@ -1058,10 +1059,16 @@ async def list_emails(
     else:
         q = {"$or": [{"to_user": user["id"]}, {"from_user": user["id"]}], "folder": "trash", "deleted_at": {"$exists": False}}
     emails = await db.emails.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
-    # Hydrate from_user_name/to_user_name
+    # Batch hydrate user names
+    all_uids = set()
     for e in emails:
-        fu = await db.users.find_one({"id": e["from_user"]}, {"_id": 0})
-        tu = await db.users.find_one({"id": e["to_user"]}, {"_id": 0})
+        all_uids.add(e["from_user"])
+        all_uids.add(e["to_user"])
+    users_batch = await db.users.find({"id": {"$in": list(all_uids)}}, {"_id": 0}).to_list(500)
+    users_map = {u["id"]: u for u in users_batch}
+    for e in emails:
+        fu = users_map.get(e["from_user"])
+        tu = users_map.get(e["to_user"])
         e["from_name"] = fu["name"] if fu else "Unknown"
         e["to_name"] = tu["name"] if tu else "Unknown"
         e["from_initials"] = fu.get("initials") if fu else "?"
@@ -1208,10 +1215,16 @@ async def delete_event(event_id: str, user: dict = Depends(get_current_user)):
 @api.get("/notifications")
 async def list_notifications(user: dict = Depends(get_current_user)):
     notes = await db.notifications.find({"user_id": user["id"], "deleted_at": {"$exists": False}}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    # hydrate from_user_name
+    # Batch hydrate from_user names
+    from_uids = list({n["from_user"] for n in notes if n.get("from_user")})
+    if from_uids:
+        from_batch = await db.users.find({"id": {"$in": from_uids}}, {"_id": 0}).to_list(200)
+        from_map = {u["id"]: u for u in from_batch}
+    else:
+        from_map = {}
     for n in notes:
         if n.get("from_user"):
-            fu = await db.users.find_one({"id": n["from_user"]}, {"_id": 0})
+            fu = from_map.get(n["from_user"])
             n["from_name"] = fu["name"] if fu else "Unknown"
             n["from_initials"] = fu.get("initials") if fu else "?"
             n["from_color"] = fu.get("color") if fu else "#8E8E93"
@@ -1762,23 +1775,23 @@ async def get_call_history(user: dict = Depends(get_current_user)):
         {"_id": 0},
     ).sort("started_at", -1).to_list(200)
 
-    # Hydrate participant info
+    # Batch hydrate all user info
+    all_uids = set()
     for log in logs:
-        participant_infos = []
-        for pid in log.get("participants", []):
-            p = await db.users.find_one({"id": pid}, {"_id": 0})
-            if p:
-                participant_infos.append(user_public(p))
-        log["participant_details"] = participant_infos
-        # Hydrate caller
-        caller = await db.users.find_one({"id": log.get("created_by")}, {"_id": 0})
-        log["caller"] = user_public(caller) if caller else None
-        # Hydrate target
+        all_uids.update(log.get("participants", []))
+        if log.get("created_by"):
+            all_uids.add(log["created_by"])
         if log.get("target_user"):
-            target = await db.users.find_one({"id": log["target_user"]}, {"_id": 0})
-            log["target"] = user_public(target) if target else None
-        else:
-            log["target"] = None
+            all_uids.add(log["target_user"])
+    users_batch = await db.users.find({"id": {"$in": list(all_uids)}}, {"_id": 0}).to_list(500)
+    users_map = {u["id"]: u for u in users_batch}
+
+    for log in logs:
+        log["participant_details"] = [user_public(users_map[pid]) for pid in log.get("participants", []) if pid in users_map]
+        caller = users_map.get(log.get("created_by"))
+        log["caller"] = user_public(caller) if caller else None
+        target = users_map.get(log.get("target_user"))
+        log["target"] = user_public(target) if target else None
     return logs
 
 
