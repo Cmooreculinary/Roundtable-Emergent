@@ -540,6 +540,7 @@ class InviteIn(BaseModel):
     table_id: str
     max_uses: int = 50
     expires_in_days: int = 30
+    recipient_email: Optional[str] = None
 
 
 class InviteJoinIn(BaseModel):
@@ -1332,6 +1333,38 @@ async def create_invite(payload: InviteIn, user: dict = Depends(get_current_user
     }
     await db.invites.insert_one(inv)
     inv.pop("_id", None)
+
+    # Send transactional invite email if recipient_email provided and Resend configured
+    if payload.recipient_email and RESEND_API_KEY:
+        t = await db.tables.find_one({"id": payload.table_id}, {"_id": 0})
+        table_name = t["name"] if t else "a Round Table"
+        try:
+            import httpx
+            join_url = f"{CORS_ORIGINS[0] if CORS_ORIGINS else 'https://roundtable.app'}/join/{code}"
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                    json={
+                        "from": f"Round Table <{RESEND_FROM_EMAIL}>",
+                        "to": [payload.recipient_email],
+                        "subject": f"{user['name']} invited you to {table_name} on Round Table",
+                        "html": (
+                            f"<div style='font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:480px;margin:0 auto;padding:32px;'>"
+                            f"<h2 style='margin:0 0 12px;'>You're invited!</h2>"
+                            f"<p style='color:#555;line-height:1.6;'>{user['name']} wants you to join <strong>{table_name}</strong> on Round Table — where your people gather.</p>"
+                            f"<a href='{join_url}' style='display:inline-block;padding:14px 28px;background:#007AFF;color:white;text-decoration:none;border-radius:10px;font-weight:600;margin:20px 0;'>Join the Table</a>"
+                            f"<p style='color:#999;font-size:13px;'>Or use invite code: <strong>{code}</strong></p>"
+                            f"</div>"
+                        ),
+                    },
+                )
+            inv["email_sent_to"] = payload.recipient_email
+            logger.info(f"Invite email sent to {payload.recipient_email} for table {table_name}")
+        except Exception as e:
+            logger.warning(f"Invite email failed: {e}")
+            inv["email_sent_to"] = None
+
     return inv
 
 
@@ -1706,7 +1739,15 @@ async def send_sms_bridge(payload: SMSBridgeIn, user: dict = Depends(get_current
             )
             if resp.status_code >= 400:
                 err_data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                err_code = err_data.get("code", 0)
                 err_msg = err_data.get("message", resp.text[:200])
+                # Twilio trial unverified number
+                if err_code == 21608 or "unverified" in err_msg.lower():
+                    raise HTTPException(status_code=400, detail={
+                        "error": "trial_unverified",
+                        "message": "This number hasn't been verified on your Twilio trial account. Verify it in the Twilio console, or upgrade to a paid account to send to any number.",
+                        "verify_url": "https://console.twilio.com/us1/develop/phone-numbers/manage/verified",
+                    })
                 logger.warning(f"Twilio SMS error: {err_msg}")
                 raise HTTPException(status_code=resp.status_code, detail=err_msg)
             return {"ok": True, "sid": resp.json().get("sid")}

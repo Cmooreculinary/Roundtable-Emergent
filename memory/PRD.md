@@ -186,6 +186,34 @@
 - **All list queries** now exclude soft-deleted items (`deleted_at: {$exists: false}`)
 - **Frontend**: Red trash icons on every row (invites, contacts), Delete button on emails, Clear buttons on call history and notifications
 
+### Apple-Native CSS Polish (Polish Prompt)
+- **Spring easing** (`cubic-bezier(0.34, 1.56, 0.64, 1)`) on all interactive elements
+- **Glass recipe**: `blur(30px) saturate(180%)` on dock, modals, toasts
+- **Hover**: `translateY(-1px)` or `scale(1.02)` with spring on buttons, sidebar items, cards
+- **Press**: `scale(0.97)` squish on all buttons
+- **Focus rings**: `2px rgba(0,122,255,0.5)` glow with spring transition
+- **Active states**: Inner shadow + gradient on primary buttons
+- **Traffic lights**: Show symbols (x, -, +) on hover
+- **Sidebar**: Lift on hover, spring collapse, blue active glow
+- **Dock**: `scale(1.15) translateY(-6px)` magnification, badge pop animation
+- **Modals**: Spring entry scale + translateY, glass backdrop
+- **Toasts**: Slide-in-right with spring
+- **Empty states**: Breathing icon animation (scale pulse)
+- **Theme toggle**: Smooth 0.4s crossfade via ease-out
+- **Text selection**: System blue `rgba(0,122,255,0.25)`
+- **Scroll**: Smooth behavior, stable gutter
+- **Text rendering**: `optimizeLegibility`
+- **Phone links**: `tel:` and `sms:` styled as blue links
+
+### Twilio Trial UX Hardening
+- Error code 21608 (unverified number) returns structured JSON with `verify_url` link
+- Frontend can display friendly modal instead of raw error
+
+### Transactional Invite Emails
+- `POST /api/invites` now accepts optional `recipient_email`
+- If Resend configured + email provided, sends branded HTML invite email with join button + code
+- Gracefully degrades if Resend not configured
+
 ## Backlog
 
 ### Deferred Enhancement (user said "remember, don't build yet")
