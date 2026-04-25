@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Settings2, Users, Play, Layers, CreditCard, FileText, ChevronRight, RotateCcw, UserPlus, Save, X, MessageSquare, Mic, File, Calendar, UtensilsCrossed, StickyNote, Sparkles, Link2, ArrowLeft } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Settings2, Users, Play, Layers, CreditCard, FileText, ChevronRight, RotateCcw, UserPlus, Save, X, MessageSquare, Mic, File, Calendar, UtensilsCrossed, StickyNote, Sparkles, Link2, ArrowLeft, Share2, Check, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 /* ═══════════════════════════════════════════
    GATHER EXPERIENCE — Room Builder + Demo
@@ -81,6 +82,10 @@ const EXPLORE_CARDS = [
 
 // ── Main Component ──────────────────────────
 export default function GatherExperience() {
+  // Parse URL params: ?for=PartnerName&autoplay=1
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const partnerName = urlParams.get("for") || "";
+
   const [tab, setTab] = useState("live");
   const [config, setConfig] = useState({
     room: ROOMS[0], table: TABLES[0], tabletop: TABLETOPS[3],
@@ -89,6 +94,7 @@ export default function GatherExperience() {
   const [seated, setSeated] = useState([]);
   const [simRunning, setSimRunning] = useState(true);
   const [simStep, setSimStep] = useState(0);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const set = (key, val) => setConfig((p) => ({ ...p, [key]: val }));
   const seatAvatar = useCallback((av) => { setSeated((p) => p.find((s) => s.id === av.id) ? p : [...p, av]); }, []);
@@ -115,6 +121,16 @@ export default function GatherExperience() {
         <a href="/" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
           <ArrowLeft size={14} /> Back to Round Table
         </a>
+        {partnerName && (
+          <div data-testid="gather-partner-badge" style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+            borderRadius: 20, background: "rgba(255,204,0,0.12)",
+            border: "1px solid rgba(255,204,0,0.3)", marginLeft: 12,
+          }}>
+            <Sparkles size={12} color="#FFCC00" />
+            <span style={{ fontSize: 11, color: "#FFCC00", fontWeight: 600 }}>Built for {partnerName}</span>
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", gap: 4 }}>
           {TABS.map((t) => (
@@ -130,6 +146,14 @@ export default function GatherExperience() {
           ))}
         </div>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setShareOpen(true)} style={{
+          padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+          background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.85)",
+          fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, marginRight: 8,
+          transition: "all 0.2s",
+        }} data-testid="gather-share-btn">
+          <Share2 size={14} /> Share Demo
+        </button>
         <button onClick={() => { setSimRunning(true); setSimStep(0); setTab("live"); autoSeat(); set("room", ROOMS[0]); set("table", TABLES[0]); set("tabletop", TABLETOPS[3]); set("food", FOODS[6]); set("ambiance", AMBIANCES[1]); set("music", MUSICS[1]); }} style={{
           padding: "8px 18px", borderRadius: 10, border: "none", cursor: "pointer",
           background: "linear-gradient(135deg, #007AFF, #5AC8FA)", color: "#fff",
@@ -138,6 +162,9 @@ export default function GatherExperience() {
           <Play size={14} /> Guided Demo
         </button>
       </div>
+
+      {/* Share modal */}
+      {shareOpen && <ShareModal onClose={() => setShareOpen(false)} initialName={partnerName} />}
 
       {/* Content */}
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 20px" }}>
@@ -685,3 +712,118 @@ const actionBtn = (bg) => ({
   display: "flex", alignItems: "center", gap: 6,
   transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1)",
 });
+
+// ══════════════════════════════════════════════
+//  SHARE MODAL — investor-ready demo links
+// ══════════════════════════════════════════════
+function ShareModal({ onClose, initialName }) {
+  const [name, setName] = useState(initialName || "");
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = useMemo(() => {
+    const base = `${window.location.origin}/gather`;
+    return name.trim() ? `${base}?for=${encodeURIComponent(name.trim())}` : base;
+  }, [name]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success("Demo link copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error("Couldn't copy — select & copy manually");
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      animation: "fadeScaleIn 0.2s ease-out",
+    }} data-testid="gather-share-modal">
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: 460, maxWidth: "92vw", padding: 28, borderRadius: 20,
+        background: "linear-gradient(135deg, #1a1a1c 0%, #0f0f10 100%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,204,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Share2 size={18} color="#FFCC00" />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Share Demo Link</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Personalize and copy a one-click investor link</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: "transparent", border: "none", cursor: "pointer", padding: 6,
+            color: "rgba(255,255,255,0.5)", borderRadius: 8,
+          }} data-testid="gather-share-close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+            Partner / Investor Name (optional)
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., Roy, Pastor Dana, Acme Ventures"
+            data-testid="gather-share-name-input"
+            style={{
+              width: "100%", padding: "12px 14px", borderRadius: 12,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box",
+              transition: "border-color 0.2s",
+            }}
+            onFocus={(e) => e.target.style.borderColor = "#5AC8FA"}
+            onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+          />
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+            They&apos;ll see &quot;Built for {name.trim() || "[name]"}&quot; in the demo header.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+            Demo URL
+          </label>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12,
+            background: "rgba(0,122,255,0.08)", border: "1px solid rgba(0,122,255,0.25)",
+          }}>
+            <Link2 size={14} color="#5AC8FA" />
+            <span data-testid="gather-share-url" style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.85)", fontFamily: "var(--font-mono, monospace)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {shareUrl}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+          <button onClick={handleCopy} data-testid="gather-share-copy" style={{
+            flex: 1, padding: "12px 18px", borderRadius: 12, border: "none", cursor: "pointer",
+            background: copied ? "#34C759" : "linear-gradient(135deg, #007AFF, #5AC8FA)",
+            color: "#fff", fontSize: 14, fontWeight: 600,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "background 0.25s",
+          }}>
+            {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy Link</>}
+          </button>
+          <button onClick={onClose} style={{
+            padding: "12px 18px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+            background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 500,
+          }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
