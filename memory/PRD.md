@@ -251,3 +251,4 @@ See `/app/memory/test_credentials.md`
 - **Iteration 13 (Code Quality Refactoring):** Backend 21/21 (100%), Frontend 100% — zero regressions
 - **Iteration 14 (Soft Delete / Trash System):** Backend 19/19 (100%), Frontend 100% — zero regressions
 - **Iteration 15 (Code Quality Review #2):** All critical findings applied — hardcoded secrets removed from 14 test files, websocket_endpoint/suggest_events refactored, all empty catch blocks fixed (0 remaining), test files use env vars via conftest
+- **Iteration 16 (Gather Experience Demo — Feb 2026):** Cinematic investor prototype wired up. `/gather` route mounted, Portal launcher banner added, simulation auto-starts on load, `autoSeat` stabilized via `useCallback`. Screenshot smoke-test passed (steps 1→4 progressing in 8s). All 6 tabs (Room Builder, Avatar Seating, Live Table, Explore, Plans, Demo Notes) functional. Frontend testing agent NOT run (skipped to conserve credits per user request).

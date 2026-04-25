@@ -81,19 +81,19 @@ const EXPLORE_CARDS = [
 
 // ── Main Component ──────────────────────────
 export default function GatherExperience() {
-  const [tab, setTab] = useState("builder");
+  const [tab, setTab] = useState("live");
   const [config, setConfig] = useState({
-    room: ROOMS[0], table: TABLES[0], tabletop: TABLETOPS[0],
-    food: FOODS[0], ambiance: AMBIANCES[1], music: MUSICS[1],
+    room: ROOMS[0], table: TABLES[0], tabletop: TABLETOPS[3],
+    food: FOODS[6], ambiance: AMBIANCES[1], music: MUSICS[1],
   });
   const [seated, setSeated] = useState([]);
-  const [simRunning, setSimRunning] = useState(false);
+  const [simRunning, setSimRunning] = useState(true);
   const [simStep, setSimStep] = useState(0);
 
   const set = (key, val) => setConfig((p) => ({ ...p, [key]: val }));
-  const seatAvatar = (av) => { if (!seated.find((s) => s.id === av.id)) setSeated((p) => [...p, av]); };
-  const clearSeats = () => setSeated([]);
-  const autoSeat = () => setSeated([DEMO_AVATARS[0], DEMO_AVATARS[1], DEMO_AVATARS[5], DEMO_AVATARS[6], DEMO_AVATARS[7]]);
+  const seatAvatar = useCallback((av) => { setSeated((p) => p.find((s) => s.id === av.id) ? p : [...p, av]); }, []);
+  const clearSeats = useCallback(() => setSeated([]), []);
+  const autoSeat = useCallback(() => setSeated([DEMO_AVATARS[0], DEMO_AVATARS[1], DEMO_AVATARS[5], DEMO_AVATARS[6], DEMO_AVATARS[7]]), []);
 
   const TABS = [
     { id: "builder", label: "Room Builder", icon: <Settings2 size={15} /> },

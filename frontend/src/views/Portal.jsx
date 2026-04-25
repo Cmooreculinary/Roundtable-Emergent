@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import EmptyState from "../components/rt/EmptyState";
 import HelpTip from "../components/rt/HelpTip";
-import { Calendar, FileText, Users, Zap, Share2, Bell, Plus, UploadCloud, Mail, MessageSquare, Radio, ChevronRight, Award, Inbox, Send, Star, AlertCircle, X, Trash2 } from "lucide-react";
+import { Calendar, FileText, Users, Zap, Share2, Bell, Plus, UploadCloud, Mail, MessageSquare, Radio, ChevronRight, Award, Inbox, Send, Star, AlertCircle, X, Trash2, Sparkles } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -46,6 +46,43 @@ export default function Portal({ tables, notifications, loadTables, loadNotifica
 
       {/* Setup reminder banner */}
       <SetupReminder user={user} onGoto={onGoto} dismissed={dismissedReminder} onDismiss={() => setDismissedReminder(true)} />
+
+      {/* Gather Experience launcher — investor demo */}
+      <div
+        onClick={() => onGoto("/gather")}
+        data-testid="portal-gather-launcher"
+        style={{
+          position: "relative",
+          cursor: "pointer",
+          padding: "18px 22px",
+          marginBottom: 14,
+          borderRadius: "var(--radius-md)",
+          background: "linear-gradient(135deg, #1a3a5c 0%, #2d5a7b 50%, #6b3a1f 100%)",
+          border: "1px solid rgba(90, 200, 250, 0.25)",
+          boxShadow: "0 8px 28px rgba(0,0,0,0.35)",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          transition: "transform 0.25s var(--spring), box-shadow 0.25s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.45)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(0,0,0,0.35)"; }}
+      >
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(255,255,255,0.15)" }}>
+          <Sparkles size={22} color="#FFCC00" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em" }}>Gather Experience</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(255,204,0,0.2)", color: "#FFCC00", textTransform: "uppercase", letterSpacing: 0.6 }}>Preview</span>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
+            Choose the room. Set the table. Seat the people. — Cinematic guided demo.
+          </div>
+        </div>
+        <ChevronRight size={20} color="rgba(255,255,255,0.7)" />
+      </div>
 
       {/* MY TABLES — prominent, full width */}
       <div className="card" style={{ padding: 14, marginBottom: 14 }}>

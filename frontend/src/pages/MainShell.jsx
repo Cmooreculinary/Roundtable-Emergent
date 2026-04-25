@@ -15,6 +15,7 @@ import NotificationsView from "../views/NotificationsView";
 import MessagesView from "../views/MessagesView";
 import WalkieView from "../views/WalkieView";
 import CallHistoryView from "../views/CallHistoryView";
+import GatherExperience from "../views/GatherExperience";
 import Settings from "./Settings";
 import CreateTableModal from "../components/modals/CreateTableModal";
 import NewEventModal from "../components/modals/NewEventModal";
@@ -203,6 +204,7 @@ export default function MainShell() {
             <Route path="/contacts" element={<ContactsView onAdd={() => openModal("addContact")} onInvite={() => openModal("invite", { tables })} />} />
             <Route path="/invites" element={<InvitesView tables={tables} onOpenInvite={() => openModal("invite", { tables })} />} />
             <Route path="/notifications" element={<NotificationsView notifications={notifications} onRefresh={loadNotifications} />} />
+            <Route path="/gather" element={<GatherExperience />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
