@@ -166,35 +166,27 @@ export default function RoundTableViz({ table, seats = [], currentUserId, onClai
               }
             };
 
+            // Visual state — derived once, no nested ternaries downstream
+            const v = seatVisuals({ occupant, isMine, isClaimable, isMoveTarget, seatNumber: i + 1 });
+
             return (
               <button
                 key={`seat-${i}`}
                 onClick={handleClick}
                 data-testid={`rt-seat-${i}`}
-                title={
-                  occupant ? (isMine ? "Click to leave this seat" : occupant.name)
-                  : isClaimable ? `Claim seat ${i + 1}`
-                  : isMoveTarget ? `Move to seat ${i + 1}`
-                  : `Seat ${i + 1}`
-                }
+                title={v.title}
                 style={{
                   position: "absolute", left: x, top: y,
                   width: SEAT, height: SEAT, borderRadius: "50%",
-                  border: occupant
-                    ? (isMine ? "3px solid #FFCC00" : `3px solid ${occupant.color || "#007AFF"}55`)
-                    : "2px dashed rgba(255,255,255,0.32)",
-                  background: occupant
-                    ? "transparent"
-                    : (isClaimable || isMoveTarget) ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
-                  cursor: occupant ? (isMine ? "pointer" : "default") : (isClaimable || isMoveTarget ? "pointer" : "default"),
+                  border: v.border,
+                  background: v.background,
+                  cursor: v.cursor,
                   padding: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 11, color: "rgba(255,255,255,0.55)", fontWeight: 700,
                   transition: "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s, background 0.2s",
                   transform: occupant ? "scale(1)" : "scale(0.92)",
-                  boxShadow: occupant
-                    ? (isMine ? "0 0 0 4px rgba(255,204,0,0.25), 0 6px 20px rgba(0,0,0,0.4)" : "0 6px 18px rgba(0,0,0,0.4)")
-                    : "none",
+                  boxShadow: v.boxShadow,
                 }}
               >
                 {occupant ? (
@@ -277,4 +269,43 @@ function SceneChip({ label, dot }) {
       {label}
     </div>
   );
+}
+
+/**
+ * Pure helper — derives seat visual state once.
+ * Read this when you need to know what a seat looks like in any state.
+ * The seat is the central metaphor of Round Table — make it explicit, not nested.
+ */
+function seatVisuals({ occupant, isMine, isClaimable, isMoveTarget, seatNumber }) {
+  // Empty seat — three sub-states
+  if (!occupant) {
+    const interactive = isClaimable || isMoveTarget;
+    let title = `Seat ${seatNumber}`;
+    if (isClaimable) title = `Claim seat ${seatNumber}`;
+    else if (isMoveTarget) title = `Move to seat ${seatNumber}`;
+    return {
+      title,
+      border: "2px dashed rgba(255,255,255,0.32)",
+      background: interactive ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
+      cursor: interactive ? "pointer" : "default",
+      boxShadow: "none",
+    };
+  }
+  // Occupied — by me (gold ring) or by someone else (their color)
+  if (isMine) {
+    return {
+      title: "Click to leave this seat",
+      border: "3px solid #FFCC00",
+      background: "transparent",
+      cursor: "pointer",
+      boxShadow: "0 0 0 4px rgba(255,204,0,0.25), 0 6px 20px rgba(0,0,0,0.4)",
+    };
+  }
+  return {
+    title: occupant.name,
+    border: `3px solid ${occupant.color || "#007AFF"}55`,
+    background: "transparent",
+    cursor: "default",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+  };
 }
