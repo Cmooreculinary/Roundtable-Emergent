@@ -2245,14 +2245,15 @@ async def _build_suggest_prompt(table: dict, table_id: str) -> dict:
 
 async def _call_llm_suggest(table_id: str, system: str, prompt: str) -> str:
     """Call the LLM and return raw response text."""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-    chat = LlmChat(
-        api_key=EMERGENT_KEY,
-        session_id=f"rt-suggest-{table_id}",
-        system_message=system,
-    ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-    response = await chat.send_message(UserMessage(text=prompt))
-    raw = str(response).strip()
+    import anthropic
+    client = anthropic.AsyncAnthropic(api_key=EMERGENT_KEY)
+    message = await client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=1024,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = message.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.strip("`")
         if raw.lower().startswith("json"):
