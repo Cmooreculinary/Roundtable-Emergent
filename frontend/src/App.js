@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
 import MainShell from "./pages/MainShell";
 import JoinByCode from "./pages/JoinByCode";
+import AutomotiveShell from "./views/automotive/AutomotiveShell";
 import { Toaster } from "sonner";
 import "./App.css";
 
@@ -82,6 +83,7 @@ function App() {
             <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
             <Route path="/register" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
             <Route path="/welcome" element={<OnboardGate><Onboarding /></OnboardGate>} />
+            <Route path="/automotive/*" element={<Protected><AutomotiveShell /></Protected>} />
             <Route path="/*" element={<Protected><MainShell /></Protected>} />
           </Routes>
         </BrowserRouter>

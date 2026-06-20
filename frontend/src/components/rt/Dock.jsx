@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Calendar, MessageSquare, Radio, Users, Grid3x3, Mail, Share2, Bell, PhoneCall } from "lucide-react";
+import { Home, Calendar, MessageSquare, Radio, Users, Grid3x3, Mail, Share2, Bell, PhoneCall, Car } from "lucide-react";
 
 const items = [
   { key: "/", label: "Portal", icon: <Home size={22} />, bg: "linear-gradient(135deg, #007AFF, #5AC8FA)" },
@@ -12,6 +12,7 @@ const items = [
   { key: "/apps", label: "Apps", icon: <Grid3x3 size={22} />, bg: "linear-gradient(135deg, #8E8E93, #3A3A3C)" },
   { key: "/invites", label: "Invites", icon: <Share2 size={22} />, bg: "linear-gradient(135deg, #FFCC00, #FF9500)" },
   { key: "/notifications", label: "Alerts", icon: <Bell size={22} />, bg: "linear-gradient(135deg, #FF2D55, #AF52DE)" },
+  { key: "/automotive/fleet", label: "Fleet AI", icon: <Car size={22} />, bg: "linear-gradient(135deg, #adc6ff, #4d8eff)" },
 ];
 
 export default function Dock({ currentPath, onNav, unreadCount = 0 }) {
