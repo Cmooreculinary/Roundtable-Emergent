@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORQUE VISION — Live Intelligence Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & BASE ─────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --ink:      #0B0B0D;
+  --ink-2:    #111115;
+  --ink-3:    #17171C;
+  --ink-4:    #1F1F27;
+  --glass:    rgba(255,255,255,0.035);
+  --rim:      rgba(255,255,255,0.07);
+  --rim-hi:   rgba(255,255,255,0.13);
+  --blue:     #4D8EFF;
+  --blue-lo:  #1A3D80;
+  --blue-hi:  #ADC6FF;
+  --cyan:     #00E5FF;
+  --amber:    #FF9500;
+  --red:      #FF3B30;
+  --green:    #34C759;
+  --text:     #E2E4F0;
+  --muted:    #5C6070;
+  --dim:      #383B47;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--ink);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  overflow: hidden;
+}
+
+/* ─── CANVAS BACKGROUND ────────────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── LAYOUT ───────────────────────────────────────────────────────── */
+.screen {
+  position: relative; z-index: 1;
+  width: 100vw; height: 100vh;
+  display: grid;
+  grid-template-rows: 52px 1fr 120px;
+  grid-template-columns: 300px 1fr 300px;
+  grid-template-areas:
+    "hdr hdr hdr"
+    "left core right"
+    "feed feed feed";
+  gap: 1px;
+  background: var(--dim);
+}
+
+/* ─── SCANLINE OVERLAY ─────────────────────────────────────────────── */
+.screen::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 100;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+}
+
+/* ─── HEADER ───────────────────────────────────────────────────────── */
+header {
+  grid-area: hdr;
+  background: var(--ink-2);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--rim);
+}
+
+.hdr-brand {
+  display: flex; align-items: center; gap: 12px;
+}
+
+.hdr-logo {
+  width: 28px; height: 28px;
+  background: var(--blue);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  position: relative;
+  animation: logo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(77,142,255,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(77,142,255,0); }
+}
+
+.hdr-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.25em;
+  color: var(--blue-hi);
+}
+
+.hdr-sub {
+  font-size: 9px; letter-spacing: 0.3em;
+  color: var(--muted); text-transform: uppercase;
+}
+
+.hdr-center {
+  display: flex; align-items: center; gap: 24px;
+}
+
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: rgba(52,199,89,0.1);
+  border: 1px solid rgba(52,199,89,0.25);
+  border-radius: 2px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.2em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: blink 1.2s ease-in-out infinite;
+}
+.dot.amber { background: var(--amber); animation-delay: .3s; }
+.dot.blue  { background: var(--blue);  animation-delay: .6s; }
+
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+
+.hdr-time {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 0.15em;
+}
+
+.hdr-right {
+  display: flex; align-items: center; gap: 16px;
+}
+
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.2em;
+  color: var(--muted); text-transform: uppercase;
+}
+
+/* ─── PANEL BASE ───────────────────────────────────────────────────── */
+.panel {
+  background: var(--ink-2);
+  position: relative; overflow: hidden;
+}
+
+.panel-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 10px 14px 6px;
+  border-bottom: 1px solid var(--rim);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.panel-label .live-badge {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 8px; color: var(--blue);
+}
+
+/* ─── LEFT PANEL ───────────────────────────────────────────────────── */
+.left-panel {
+  grid-area: left;
+  display: flex; flex-direction: column;
+}
+
+/* Telemetry rows */
+.telemetry-list {
+  flex: 1; overflow: hidden;
+  padding: 8px 0;
+}
+
+.telem-row {
+  display: flex; align-items: center;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--rim);
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.telem-row:hover { background: var(--glass); }
+
+.telem-label {
+  font-size: 9px; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--muted);
+  width: 90px; flex-shrink: 0;
+}
+
+.telem-bar-wrap {
+  flex: 1; height: 3px;
+  background: var(--ink-4); border-radius: 1px; overflow: hidden;
+}
+
+.telem-bar {
+  height: 100%; border-radius: 1px;
+  background: var(--blue);
+  box-shadow: 0 0 6px var(--blue);
+  transition: width 0.8s cubic-bezier(.4,0,.2,1);
+}
+.telem-bar.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.telem-bar.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+.telem-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; color: var(--text);
+  width: 48px; text-align: right; flex-shrink: 0;
+}
+
+/* Waveform canvas */
+.wave-wrap {
+  height: 80px; border-top: 1px solid var(--rim);
+  padding: 8px;
+  position: relative;
+}
+
+.wave-label {
+  position: absolute; top: 10px; left: 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.25em;
+  color: var(--muted); text-transform: uppercase;
+}
+
+/* Inference stream */
+.inference-stream {
+  height: 110px; border-top: 1px solid var(--rim);
+  padding: 8px 14px; overflow: hidden;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.infer-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 9px; line-height: 1.4;
+  animation: slide-in-left 0.3s ease-out;
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.infer-ts {
+  font-family: 'Space Mono', monospace;
+  color: var(--muted); flex-shrink: 0; font-size: 8px;
+}
+
+.infer-text { color: var(--text); }
+.infer-text .hl { color: var(--blue-hi); }
+.infer-text .warn { color: var(--amber); }
+.infer-text .ok { color: var(--green); }
+
+/* ─── CORE PANEL ───────────────────────────────────────────────────── */
+.core-panel {
+  grid-area: core;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+  background: var(--ink);
+}
+
+/* Crosshair grid */
+.core-panel::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--rim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rim) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.5;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 80%);
+}
+
+#core-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+}
+
+.core-stats-overlay {
+  position: absolute; bottom: 24px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 32px;
+  pointer-events: none;
+}
+
+.cstat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+
+.cstat-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px; font-weight: 700;
+  color: var(--blue-hi);
+  text-shadow: 0 0 20px rgba(77,142,255,0.8);
+}
+
+.cstat-label {
+  font-size: 8px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* Scan progress arc */
+.scan-arc-wrap {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+
+.scan-status {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  animation: status-cycle 4s ease-in-out infinite;
+}
+
+@keyframes status-cycle {
+  0%,20%   { content: ''; }
+}
+
+/* ─── RIGHT PANEL ──────────────────────────────────────────────────── */
+.right-panel {
+  grid-area: right;
+  display: flex; flex-direction: column;
+}
+
+/* Gauge cluster */
+.gauge-cluster {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; border-bottom: 1px solid var(--rim);
+}
+
+.gauge-cell {
+  padding: 12px 14px;
+  background: var(--ink-2);
+  display: flex; flex-direction: column; gap: 6px;
+  border-right: 1px solid var(--rim);
+}
+.gauge-cell:nth-child(2n) { border-right: none; }
+
+.gauge-name {
+  font-size: 8px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+.gauge-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  line-height: 1;
+}
+
+.gauge-num.blue  { color: var(--blue-hi); }
+.gauge-num.green { color: var(--green);   }
+.gauge-num.amber { color: var(--amber);   }
+.gauge-num.red   { color: var(--red);     }
+
+.gauge-unit {
+  font-size: 9px; color: var(--muted);
+}
+
+.gauge-sparkline {
+  height: 24px; position: relative;
+}
+
+/* Alert feed */
+.alert-feed {
+  flex: 1; overflow: hidden; padding: 8px 0;
+}
+
+.alert-item {
+  padding: 7px 14px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--rim);
+  display: flex; flex-direction: column; gap: 2px;
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.alert-item.info  { border-left-color: var(--blue); }
+.alert-item.warn  { border-left-color: var(--amber); background: rgba(255,149,0,0.04); }
+.alert-item.ok    { border-left-color: var(--green); }
+.alert-item.crit  { border-left-color: var(--red);   background: rgba(255,59,48,0.04); }
+
+.alert-head {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.alert-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.alert-time {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; color: var(--muted);
+}
+
+.alert-body {
+  font-size: 9px; color: var(--muted); line-height: 1.5;
+}
+
+/* Probability bars */
+.prob-section {
+  border-top: 1px solid var(--rim); padding: 10px 14px;
+}
+
+.prob-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.25em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.prob-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+}
+
+.prob-label {
+  font-size: 9px; color: var(--muted); width: 80px; flex-shrink: 0;
+}
+
+.prob-track {
+  flex: 1; height: 4px; background: var(--ink-4); border-radius: 2px; overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--blue-lo), var(--blue));
+  box-shadow: 0 0 8px rgba(77,142,255,0.5);
+  transition: width 1.2s cubic-bezier(.4,0,.2,1);
+}
+
+.prob-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; color: var(--blue-hi); width: 32px; text-align: right;
+}
+
+/* ─── BOTTOM FEED ──────────────────────────────────────────────────── */
+.feed-bar {
+  grid-area: feed;
+  background: var(--ink-3);
+  border-top: 1px solid var(--rim);
+  display: flex; align-items: stretch;
+  overflow: hidden;
+}
+
+.feed-tag {
+  padding: 0 16px;
+  background: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.25em;
+  color: #000; font-weight: 700;
+  writing-mode: horizontal-tb;
+  text-transform: uppercase;
+}
+
+.feed-scroll {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 6px 16px;
+  gap: 2px;
+}
+
+.feed-line {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.1em;
+  white-space: nowrap; overflow: hidden;
+  color: var(--muted);
+  animation: feed-tick 0.3s ease-out;
+}
+
+@keyframes feed-tick {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.feed-line .ts    { color: var(--dim); }
+.feed-line .ev    { color: var(--blue-hi); }
+.feed-line .val   { color: var(--green); }
+.feed-line .warn  { color: var(--amber); }
+.feed-line .node  { color: var(--cyan); }
+
+/* Feed counter */
+.feed-counter {
+  padding: 0 16px;
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  gap: 2px; flex-shrink: 0;
+  border-left: 1px solid var(--rim);
+}
+
+.fc-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  color: var(--blue-hi);
+  text-shadow: 0 0 20px rgba(77,142,255,0.6);
+  line-height: 1;
+  min-width: 60px; text-align: right;
+}
+
+.fc-label {
+  font-size: 8px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* ─── CORNER DECORATORS ────────────────────────────────────────────── */
+.corner-deco {
+  position: absolute; width: 10px; height: 10px;
+  border-color: var(--blue);
+  border-style: solid;
+  opacity: 0.5;
+}
+.corner-deco.tl { top: 0; left: 0; border-width: 1px 0 0 1px; }
+.corner-deco.tr { top: 0; right: 0; border-width: 1px 1px 0 0; }
+.corner-deco.bl { bottom: 0; left: 0; border-width: 0 0 1px 1px; }
+.corner-deco.br { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+/* ─── SPARKLINE CANVAS (inline) ────────────────────────────────────── */
+.spark { width: 100%; height: 100%; }
+
+/* ─── HERO TEXT OVERLAY ─────────────────────────────────────────────── */
+.hero-overlay {
+  position: absolute; top: 18px; left: 20px;
+  z-index: 2; pointer-events: none;
+}
+
+.hero-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.35em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.hero-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px; font-weight: 700; line-height: 1.1;
+  color: var(--text);
+}
+
+.hero-title em {
+  font-style: normal;
+  color: var(--blue-hi);
+  text-shadow: 0 0 30px rgba(77,142,255,0.5);
+}
+
+.hero-sub {
+  font-size: 11px; color: var(--muted); margin-top: 6px;
+  max-width: 220px; line-height: 1.5;
+}
+
+/* ─── RADIAL CONFIDENCE ─────────────────────────────────────────────── */
+.radial-wrap {
+  position: absolute; bottom: 50px; left: 20px; z-index: 2;
+  pointer-events: none;
+}
+
+.radial-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 0.25em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.radial-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+}
+
+.radial-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.radial-name {
+  font-size: 9px; color: var(--muted); width: 80px;
+}
+
+.radial-arc {
+  width: 80px; height: 4px; background: var(--ink-4);
+  border-radius: 2px; overflow: hidden;
+}
+
+.radial-arc-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 1s ease-in-out;
+}
+
+.radial-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; width: 32px; text-align: right;
+}
+
+</style>
+</head>
+<body>
+
+<!-- Neural net background -->
+<canvas id="bg-canvas"></canvas>
+
+<div class="screen">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="hdr-brand">
+      <div class="hdr-logo"></div>
+      <div>
+        <div class="hdr-title">TORQUE VISION</div>
+        <div class="hdr-sub">Real-Time Intelligence Engine</div>
+      </div>
+    </div>
+
+    <div class="hdr-center">
+      <div class="status-pill">
+        <span class="dot"></span>
+        ENGINE ONLINE
+      </div>
+      <div class="status-pill" style="border-color:rgba(77,142,255,0.25);background:rgba(77,142,255,0.08);color:var(--blue)">
+        <span class="dot blue"></span>
+        MODEL v4.2.1
+      </div>
+      <div class="status-pill" style="border-color:rgba(255,149,0,0.25);background:rgba(255,149,0,0.07);color:var(--amber)">
+        <span class="dot amber"></span>
+        SENSORS × 24
+      </div>
+    </div>
+
+    <div class="hdr-right">
+      <span class="badge">UNIT #TV-0092</span>
+      <div class="hdr-time" id="hdr-clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="panel left-panel">
+    <div class="panel-label">
+      Live Telemetry
+      <span class="live-badge"><span class="dot blue" style="width:5px;height:5px;"></span>STREAMING</span>
+    </div>
+
+    <div class="telemetry-list" id="telem-list">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="wave-wrap">
+      <div class="wave-label">Acoustic Signature</div>
+      <canvas id="wave-canvas" style="width:100%;height:100%;"></canvas>
+    </div>
+
+    <div class="inference-stream" id="infer-stream">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- ── CORE PANEL ── -->
+  <div class="panel core-panel">
+    <canvas id="core-canvas"></canvas>
+
+    <div class="hero-overlay">
+      <div class="hero-label">Intelligence Snapshot</div>
+      <div class="hero-title">One engine.<br><em>Everything</em> live.</div>
+      <div class="hero-sub">Sub-millisecond sensor fusion across 24 data channels — continuously.</div>
+    </div>
+
+    <div class="core-stats-overlay">
+      <div class="cstat">
+        <div class="cstat-val" id="cs-hz">—</div>
+        <div class="cstat-label">Hz cycle rate</div>
+      </div>
+      <div class="cstat">
+        <div class="cstat-val" id="cs-lat">—</div>
+        <div class="cstat-label">ms latency</div>
+      </div>
+      <div class="cstat">
+        <div class="cstat-val" id="cs-conf">—</div>
+        <div class="cstat-label">% confidence</div>
+      </div>
+      <div class="cstat">
+        <div class="cstat-val" id="cs-evt">—</div>
+        <div class="cstat-label">events / sec</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="panel right-panel">
+    <div class="panel-label">
+      System Gauges
+      <span class="live-badge"><span class="dot blue" style="width:5px;height:5px;"></span>LIVE</span>
+    </div>
+
+    <div class="gauge-cluster">
+      <div class="gauge-cell">
+        <div class="gauge-name">RPM</div>
+        <div class="gauge-num blue" id="g-rpm">—</div>
+        <div class="gauge-unit">rev/min</div>
+        <div class="gauge-sparkline"><canvas class="spark" id="sp-rpm"></canvas></div>
+      </div>
+      <div class="gauge-cell">
+        <div class="gauge-name">Coolant</div>
+        <div class="gauge-num green" id="g-temp">—</div>
+        <div class="gauge-unit">°F</div>
+        <div class="gauge-sparkline"><canvas class="spark" id="sp-temp"></canvas></div>
+      </div>
+      <div class="gauge-cell">
+        <div class="gauge-name">Oil PSI</div>
+        <div class="gauge-num amber" id="g-oil">—</div>
+        <div class="gauge-unit">psi</div>
+        <div class="gauge-sparkline"><canvas class="spark" id="sp-oil"></canvas></div>
+      </div>
+      <div class="gauge-cell">
+        <div class="gauge-name">Boost</div>
+        <div class="gauge-num red" id="g-boost">—</div>
+        <div class="gauge-unit">psi</div>
+        <div class="gauge-sparkline"><canvas class="spark" id="sp-boost"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel-label" style="margin-top:1px;">
+      Alert Feed
+      <span class="live-badge"><span class="dot blue" style="width:5px;height:5px;"></span>LIVE</span>
+    </div>
+
+    <div class="alert-feed" id="alert-feed">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="prob-section">
+      <div class="prob-title">Diagnosis Confidence</div>
+      <div id="prob-rows"><!-- JS --></div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM FEED ── -->
+  <div class="feed-bar">
+    <div class="feed-tag">EVENT STREAM</div>
+    <div class="feed-scroll" id="feed-scroll">
+      <!-- JS -->
+    </div>
+    <div class="feed-counter">
+      <div class="fc-num" id="fc-num">0</div>
+      <div class="fc-label">total events</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ──────────────────────────────────────────────────────────────
+   UTILITIES
+────────────────────────────────────────────────────────────── */
+const rand  = (a, b) => a + Math.random() * (b - a);
+const irand = (a, b) => Math.floor(rand(a, b + 1));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const lerp  = (a, b, t) => a + (b - a) * t;
+
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+
+/* ──────────────────────────────────────────────────────────────
+   CLOCK
+────────────────────────────────────────────────────────────── */
+function tickClock() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  $('#hdr-clock').textContent =
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+/* ──────────────────────────────────────────────────────────────
+   BACKGROUND — NEURAL MESH
+────────────────────────────────────────────────────────────── */
+(function initBg() {
+  const canvas = $('#bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, nodes;
+
+  function resize() {
+    W = canvas.width  = innerWidth;
+    H = canvas.height = innerHeight;
+    nodes = Array.from({ length: 55 }, () => ({
+      x: rand(0, W), y: rand(0, H),
+      vx: rand(-0.3, 0.3), vy: rand(-0.3, 0.3),
+      r: rand(1.5, 3),
+      pulse: rand(0, Math.PI * 2),
+    }));
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Update
+    for (const n of nodes) {
+      n.x += n.vx; n.y += n.vy;
+      n.pulse += 0.02;
+      if (n.x < 0 || n.x > W) n.vx *= -1;
+      if (n.y < 0 || n.y > H) n.vy *= -1;
+    }
+
+    // Edges
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 160) {
+          const alpha = (1 - dist / 160) * 0.12;
+          ctx.strokeStyle = `rgba(77,142,255,${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Nodes
+    for (const n of nodes) {
+      const glow = 0.3 + 0.2 * Math.sin(n.pulse);
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(77,142,255,${glow})`;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ──────────────────────────────────────────────────────────────
+   CORE CANVAS — ORBITAL RING ENGINE
+────────────────────────────────────────────────────────────── */
+(function initCore() {
+  const canvas = $('#core-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, t = 0;
+
+  // Data packets orbiting the ring
+  const packets = Array.from({ length: 20 }, (_, i) => ({
+    orbit: rand(0.6, 1.0),   // fraction of ring radius
+    angle: rand(0, Math.PI * 2),
+    speed: rand(0.004, 0.015) * (Math.random() > 0.5 ? 1 : -1),
+    size:  rand(2, 5),
+    alpha: rand(0.4, 1),
+    color: Math.random() > 0.7 ? '#00E5FF' : '#4D8EFF',
+  }));
+
+  // Radial data "spokes" sampling values
+  const spokeCount = 64;
+  const spokeData  = Array.from({ length: spokeCount }, () => rand(0.2, 1));
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = canvas.width  = rect.width;
+    H = canvas.height = rect.height;
+  }
+
+  function easeSpokes() {
+    for (let i = 0; i < spokeCount; i++) {
+      const target = rand(0.1, 1);
+      spokeData[i] = lerp(spokeData[i], target, 0.04);
+    }
+  }
+
+  function draw() {
+    t += 0.012;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2, cy = H / 2;
+    const R = Math.min(W, H) * 0.28;
+
+    easeSpokes();
+
+    /* — Radial equaliser — */
+    ctx.save();
+    const angleStep = (Math.PI * 2) / spokeCount;
+    for (let i = 0; i < spokeCount; i++) {
+      const a = i * angleStep;
+      const inner = R * 0.72;
+      const outer = R * 0.72 + spokeData[i] * R * 0.26;
+      const alpha = 0.15 + spokeData[i] * 0.55;
+      ctx.strokeStyle = `rgba(77,142,255,${alpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+      ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    /* — Ring glow (multiple passes for bloom) — */
+    for (let pass = 0; pass < 3; pass++) {
+      const alpha = [0.06, 0.12, 0.22][pass];
+      const width = [12, 5, 1.5][pass];
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 0.72, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(77,142,255,${alpha})`;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+
+    /* — Rotating scan arc — */
+    const arcLen = Math.PI * 0.6;
+    const arcAngle = t * 0.8;
+    const grad = ctx.createConicalGradient
+      ? null  // not universally supported
+      : null;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(arcAngle);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.72, -arcLen / 2, arcLen / 2);
+    ctx.strokeStyle = 'rgba(0,229,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0,229,255,1)';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.restore();
+
+    /* — Scan head dot — */
+    ctx.save();
+    const headX = cx + Math.cos(arcAngle + arcLen / 2) * R * 0.72;
+    const headY = cy + Math.sin(arcAngle + arcLen / 2) * R * 0.72;
+    ctx.beginPath();
+    ctx.arc(headX, headY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,229,255,1)';
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 20;
+    ctx.fill();
+    ctx.restore();
+
+    /* — Inner concentric rings — */
+    [0.45, 0.58].forEach((f, i) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(77,142,255,${0.06 + i * 0.04})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    /* — Core pulse — */
+    const pulse = 0.6 + 0.4 * Math.sin(t * 1.8);
+    const coreR = R * 0.12 * pulse;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+    g.addColorStop(0, 'rgba(0,229,255,0.9)');
+    g.addColorStop(0.4, 'rgba(77,142,255,0.4)');
+    g.addColorStop(1, 'rgba(77,142,255,0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    /* — Cross-hair lines — */
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t * 0.2);
+    for (let a = 0; a < 4; a++) {
+      const angle = (a / 4) * Math.PI * 2;
+      ctx.strokeStyle = 'rgba(77,142,255,0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(angle) * R * 1.4, Math.sin(angle) * R * 1.4);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    /* — Orbiting data packets — */
+    for (const p of packets) {
+      p.angle += p.speed;
+      const r = R * p.orbit;
+      const px = cx + Math.cos(p.angle) * r;
+      const py = cy + Math.sin(p.angle) * r;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px, py, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.restore();
+
+      /* tail */
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      for (let j = 1; j <= 5; j++) {
+        const ta = p.angle - p.speed * j * 3;
+        const tx = cx + Math.cos(ta) * r;
+        const ty = cy + Math.sin(ta) * r;
+        ctx.beginPath();
+        ctx.arc(tx, ty, p.size * (1 - j * 0.15), 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.25 * (1 - j / 6);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); });
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ──────────────────────────────────────────────────────────────
+   WAVEFORM
+────────────────────────────────────────────────────────────── */
+(function initWave() {
+  const canvas = $('#wave-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, t = 0;
+  let freqs = Array.from({ length: 8 }, () => rand(0.5, 4));
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = canvas.width  = rect.width  * 2;
+    H = canvas.height = rect.height * 2;
+    canvas.style.width  = '100%';
+    canvas.style.height = '100%';
+  }
+
+  function draw() {
+    t += 0.04;
+    ctx.clearRect(0, 0, W, H);
+
+    const pts = 200;
+    ctx.beginPath();
+    for (let i = 0; i <= pts; i++) {
+      const x = (i / pts) * W;
+      let y = H / 2;
+      for (let f = 0; f < freqs.length; f++) {
+        y += Math.sin(i * freqs[f] * 0.05 + t + f) * (H * 0.06) / (f + 1);
+      }
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, 'rgba(77,142,255,0)');
+    grad.addColorStop(0.2, 'rgba(0,229,255,0.8)');
+    grad.addColorStop(0.8, 'rgba(0,229,255,0.8)');
+    grad.addColorStop(1, 'rgba(77,142,255,0)');
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+
+    // Drift freqs slowly
+    if (Math.random() < 0.02) {
+      const idx = irand(0, freqs.length - 1);
+      freqs[idx] = rand(0.3, 5);
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ──────────────────────────────────────────────────────────────
+   SPARKLINES (right panel)
+────────────────────────────────────────────────────────────── */
+const sparkState = {
+  rpm:   { data: [], color: '#ADC6FF', range: [600, 5500] },
+  temp:  { data: [], color: '#34C759', range: [165, 220] },
+  oil:   { data: [], color: '#FF9500', range: [30, 75] },
+  boost: { data: [], color: '#FF3B30', range: [0, 22] },
+};
+
+(function initSparks() {
+  Object.keys(sparkState).forEach(key => {
+    const s = sparkState[key];
+    for (let i = 0; i < 40; i++) s.data.push(rand(s.range[0], s.range[1]));
+    drawSpark(key);
+  });
+})();
+
+function drawSpark(key) {
+  const s = sparkState[key];
+  const canvas = $(`#sp-${key}`);
+  if (!canvas) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  * 2;
+  canvas.height = rect.height * 2;
+  canvas.style.width  = '100%';
+  canvas.style.height = '100%';
+
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const [lo, hi] = s.range;
+  const pts = s.data.slice(-40);
+
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = (i / (pts.length - 1)) * W;
+    const y = H - ((v - lo) / (hi - lo)) * H * 0.9 - H * 0.05;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = s.color;
+  ctx.shadowBlur = 6;
+  ctx.stroke();
+
+  // Fill under
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = s.color + '18';
+  ctx.fill();
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — TELEMETRY ROWS
+────────────────────────────────────────────────────────────── */
+const TELEMS = [
+  { id: 'rpm',    label: 'Engine RPM',     unit: 'rpm',  val: 1800, min: 600,  max: 5500, color: 'blue' },
+  { id: 'temp',   label: 'Coolant Temp',   unit: '°F',   val: 192,  min: 160,  max: 230,  color: 'green' },
+  { id: 'oil',    label: 'Oil Pressure',   unit: 'psi',  val: 52,   min: 20,   max: 80,   color: 'amber' },
+  { id: 'boost',  label: 'Turbo Boost',    unit: 'psi',  val: 12,   min: 0,    max: 22,   color: 'blue' },
+  { id: 'maf',    label: 'MAF Flow',       unit: 'g/s',  val: 22,   min: 0,    max: 60,   color: 'green' },
+  { id: 'lambda', label: 'Lambda (AFR)',    unit: 'λ',    val: 1.01, min: 0.7,  max: 1.3,  color: 'blue' },
+  { id: 'iat',    label: 'Intake Air Temp', unit: '°F',  val: 78,   min: 40,   max: 140,  color: 'amber' },
+  { id: 'bat',    label: 'Battery',         unit: 'V',   val: 14.2, min: 11,   max: 15.5, color: 'green' },
+];
+
+(function buildTelemRows() {
+  const list = $('#telem-list');
+  TELEMS.forEach(t => {
+    const pct = ((t.val - t.min) / (t.max - t.min)) * 100;
+    const row = document.createElement('div');
+    row.className = 'telem-row';
+    row.id = `tr-${t.id}`;
+    row.innerHTML = `
+      <div class="telem-label">${t.label}</div>
+      <div class="telem-bar-wrap">
+        <div class="telem-bar ${t.color}" id="tb-${t.id}" style="width:${pct}%"></div>
+      </div>
+      <div class="telem-val" id="tv-${t.id}">${t.val.toFixed(t.id==='lambda'?2:0)}</div>`;
+    list.appendChild(row);
+  });
+})();
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — GAUGES
+────────────────────────────────────────────────────────────── */
+const gaugeState = {
+  rpm:   1800,
+  temp:  192,
+  oil:   52,
+  boost: 12,
+};
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — PROBABILITY ROWS
+────────────────────────────────────────────────────────────── */
+const PROBS = [
+  { label: 'Nominal Ops',    val: 94, color: '#34C759' },
+  { label: 'Sensor Drift',   val: 12, color: '#FF9500' },
+  { label: 'Fuel Trim Adj',  val: 31, color: '#4D8EFF' },
+  { label: 'Misfire Risk',   val:  4, color: '#FF3B30' },
+];
+
+(function buildProbs() {
+  const wrap = $('#prob-rows');
+  PROBS.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'prob-row';
+    row.innerHTML = `
+      <div class="prob-label">${p.label}</div>
+      <div class="prob-track">
+        <div class="prob-fill" id="pf-${i}" style="width:${p.val}%;background:${p.color};box-shadow:0 0 8px ${p.color}80"></div>
+      </div>
+      <div class="prob-pct" id="pp-${i}" style="color:${p.color}">${p.val}%</div>`;
+    wrap.appendChild(row);
+  });
+})();
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — ALERT FEED
+────────────────────────────────────────────────────────────── */
+const ALERTS = [
+  { type: 'ok',   tag: 'NOMINAL',  body: 'Cylinder bank A firing within spec.' },
+  { type: 'info', tag: 'INFO',     body: 'MAF sensor calibrated — delta 0.3 g/s.' },
+  { type: 'warn', tag: 'ADVISORY', body: 'Intake air temp elevated +8°F over baseline.' },
+  { type: 'ok',   tag: 'RESOLVED', body: 'Lambda stabilised post cold-start enrichment.' },
+  { type: 'info', tag: 'MODEL',    body: 'Inference cycle 4,211 completed — 14ms.' },
+  { type: 'warn', tag: 'WATCH',    body: 'Oil pressure variance ±3 psi over last 120s.' },
+  { type: 'crit', tag: 'ALERT',    body: 'Knock sensor B reading 1.4× threshold — logged.' },
+  { type: 'ok',   tag: 'CLEAR',    body: 'Fuel injector rail pressure holding 2,200 psi.' },
+];
+
+let alertIdx = 0;
+const alertFeed = $('#alert-feed');
+
+function pushAlert() {
+  const a = ALERTS[alertIdx % ALERTS.length];
+  alertIdx++;
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const el = document.createElement('div');
+  el.className = `alert-item ${a.type}`;
+  const tagColor = { ok:'#34C759', info:'#4D8EFF', warn:'#FF9500', crit:'#FF3B30' }[a.type];
+  el.innerHTML = `
+    <div class="alert-head">
+      <span class="alert-tag" style="color:${tagColor}">${a.tag}</span>
+      <span class="alert-time">${ts}</span>
+    </div>
+    <div class="alert-body">${a.body}</div>`;
+  alertFeed.prepend(el);
+  // Trim to 6
+  while (alertFeed.children.length > 6) alertFeed.removeChild(alertFeed.lastChild);
+}
+// Initial populate
+for (let i = 0; i < 4; i++) pushAlert();
+setInterval(pushAlert, 3800);
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — INFERENCE STREAM (left panel bottom)
+────────────────────────────────────────────────────────────── */
+const INFER_MSGS = [
+  () => `<span class="hl">INFER</span> Knock sensor variance → <span class="ok">CLEAR</span>`,
+  () => `<span class="hl">SENSOR</span> MAF delta <span class="warn">+0.3 g/s</span> flagged`,
+  () => `<span class="hl">MODEL</span> Cycle ${irand(4000,5999)} — latency <span class="ok">${irand(9,18)}ms</span>`,
+  () => `<span class="hl">FUSION</span> 24 channels merged — confidence <span class="ok">${irand(90,99)}%</span>`,
+  () => `<span class="hl">ROUTE</span> Advisory → alert feed`,
+  () => `<span class="hl">TRIM</span> Fuel enrichment delta <span class="ok">nominal</span>`,
+  () => `<span class="hl">CAL</span> Throttle position sensor re-zeroed`,
+  () => `<span class="hl">EVT</span> <span class="warn">Boost</span> peak logged — ${(rand(12,18)).toFixed(1)} psi`,
+];
+
+let inferIdx = 0;
+const inferStream = $('#infer-stream');
+
+function pushInfer() {
+  const now = new Date();
+  const ts = `${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+  const el = document.createElement('div');
+  el.className = 'infer-row';
+  el.innerHTML = `
+    <span class="infer-ts">${ts}</span>
+    <span class="infer-text">${INFER_MSGS[inferIdx % INFER_MSGS.length]()}</span>`;
+  inferIdx++;
+  inferStream.prepend(el);
+  while (inferStream.children.length > 5) inferStream.removeChild(inferStream.lastChild);
+}
+for (let i = 0; i < 4; i++) pushInfer();
+setInterval(pushInfer, 900);
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — BOTTOM EVENT STREAM
+────────────────────────────────────────────────────────────── */
+const FEED_TEMPLATES = [
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">ENGINE</span>   <span class="ev">RPM_UPDATE</span>       val=<span class="val">${irand(1600,4800)}</span> rpm`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">THERMAL</span>  <span class="ev">TEMP_SAMPLE</span>      val=<span class="val">${irand(185,215)}</span>°F`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">FUSION</span>   <span class="ev">CYCLE_COMPLETE</span>   cycle=<span class="val">${irand(4100,5800)}</span>  lat=<span class="val">${irand(8,20)}</span>ms`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">MODEL</span>    <span class="ev">INFERENCE_OK</span>     conf=<span class="val">${irand(90,99)}</span>%`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">OIL</span>      <span class="ev">PSI_SAMPLE</span>       val=<span class="val">${irand(40,70)}</span> psi`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">BOOST</span>    <span class="ev">TURBO_READING</span>    val=<span class="warn">${(rand(10,18)).toFixed(1)}</span> psi`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">LAMBDA</span>   <span class="ev">AFR_SNAPSHOT</span>     λ=<span class="val">${(rand(0.97,1.04)).toFixed(3)}</span>`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">SENSOR</span>   <span class="ev">MAF_DELTA</span>        Δ=<span class="warn">+${(rand(0,0.8)).toFixed(2)}</span> g/s`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">KNOCK</span>    <span class="ev">SENSOR_A_OK</span>      amp=<span class="val">${(rand(0.1,0.6)).toFixed(2)}</span>`,
+  (ts) => `<span class="ts">${ts}</span>  <span class="node">BATTERY</span>  <span class="ev">VOLTAGE_SAMPLE</span>   val=<span class="val">${(rand(13.8,14.6)).toFixed(1)}</span>V`,
+];
+
+let feedTpl = 0;
+let totalEvents = 0;
+const feedScroll  = $('#feed-scroll');
+const fcNum       = $('#fc-num');
+
+function pushFeedLine() {
+  const now  = new Date();
+  const ts   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+  const tmpl = FEED_TEMPLATES[feedTpl % FEED_TEMPLATES.length];
+  feedTpl++;
+  totalEvents++;
+
+  const el = document.createElement('div');
+  el.className = 'feed-line';
+  el.innerHTML = tmpl(ts);
+  feedScroll.appendChild(el);
+
+  while (feedScroll.children.length > 4) feedScroll.removeChild(feedScroll.firstChild);
+
+  fcNum.textContent = totalEvents.toLocaleString();
+}
+setInterval(pushFeedLine, 340);
+
+/* ──────────────────────────────────────────────────────────────
+   LIVE DATA — UPDATE LOOP (telemetry, gauges, core stats)
+────────────────────────────────────────────────────────────── */
+const targets = {};
+TELEMS.forEach(t => { targets[t.id] = t.val; });
+
+function driftTarget(key, cfg) {
+  const cur = targets[key];
+  const step = (cfg.max - cfg.min) * rand(0.01, 0.04);
+  const dir  = Math.random() > 0.5 ? 1 : -1;
+  targets[key] = clamp(cur + dir * step, cfg.min, cfg.max);
+}
+
+function updateTelemetry() {
+  TELEMS.forEach(t => {
+    driftTarget(t.id, t);
+    const val = targets[t.id];
+    const pct = ((val - t.min) / (t.max - t.min)) * 100;
+    const bar = $(`#tb-${t.id}`);
+    const txt = $(`#tv-${t.id}`);
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = val.toFixed(t.id === 'lambda' ? 2 : 0) + (t.id==='lambda'?'':' ');
+  });
+}
+
+function updateGauges() {
+  const keys = ['rpm', 'temp', 'oil', 'boost'];
+  keys.forEach(k => {
+    const el = $(`#g-${k}`);
+    if (!el) return;
+    const val = targets[k] || gaugeState[k];
+    const s = sparkState[k];
+    let display;
+    if (k === 'rpm')   display = Math.round(val);
+    else if (k === 'temp') display = Math.round(val);
+    else display = val.toFixed(1);
+    el.textContent = display;
+
+    // Update sparkline data
+    if (s) {
+      s.data.push(val);
+      if (s.data.length > 50) s.data.shift();
+      drawSpark(k);
+    }
+  });
+}
+
+let hz = 847, lat = 12, conf = 96, evtRate = 24;
+function updateCoreStats() {
+  hz      = clamp(hz + irand(-15, 20), 750, 1024);
+  lat     = clamp(lat + rand(-0.8, 0.8), 8, 22);
+  conf    = clamp(conf + rand(-0.5, 0.3), 88, 99.9);
+  evtRate = clamp(evtRate + irand(-2, 3), 18, 36);
+
+  $('#cs-hz').textContent  = hz;
+  $('#cs-lat').textContent = lat.toFixed(1);
+  $('#cs-conf').textContent = conf.toFixed(1);
+  $('#cs-evt').textContent  = evtRate;
+}
+
+function updateProbs() {
+  PROBS.forEach((p, i) => {
+    p.val = clamp(p.val + rand(-1.5, 1.5), 1, 99);
+    const fill = $(`#pf-${i}`);
+    const pct  = $(`#pp-${i}`);
+    if (fill) fill.style.width = p.val + '%';
+    if (pct)  pct.textContent  = p.val.toFixed(0) + '%';
+  });
+}
+
+setInterval(() => {
+  updateTelemetry();
+  updateGauges();
+  updateCoreStats();
+  updateProbs();
+}, 600);
+
+</script>
+</body>
+</html>
