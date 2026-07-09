@@ -1,6 +1,6 @@
 {
-  "short_name": "Round Table",
-  "name": "Round Table — Where your people gather",
+  "short_name": "Roundtable_VO",
+  "name": "Roundtable_VO — Where your people gather",
   "description": "macOS-styled unified collaboration platform. Families, faith communities, project teams, neighborhoods.",
   "start_url": "/",
   "display": "standalone",

@@ -1,5 +1,5 @@
 {
-  "project_name": "Round Table",
+  "project_name": "Roundtable_VO",
   "theme": "macOS Hybrid (Light & Dark)",
   "archetype": "Apple Glassmorphism & High Contrast",
   "design_principles": [
@@ -90,7 +90,7 @@
     "sidebar": {
       "width": "240px",
       "bg": "bg-tertiary",
-      "sections": "Home, Portal, Calendar, Messages, Apps, Contacts + 'Round Tables' section (live/dormant states with indicators)."
+      "sections": "Home, Portal, Calendar, Messages, Apps, Contacts + tables section (live/dormant states with indicators)."
     },
     "dock": {
       "position": "bottom-center",
@@ -118,7 +118,7 @@
       "layout": "Grid of 24 apps, 4x6 or 6x4 depending on width. Icon + text below."
     },
     "contacts": {
-      "layout": "Split view: On-Round-Table vs Not-On, with invite buttons."
+            "layout": "Split view: on-platform vs not-on-platform contacts, with invite buttons."
     },
     "invite_referral_system": {
       "components": "Invite codes generator, share button, usage tracking list, Referral tracking with badge progression + top-3 leaderboard."
@@ -162,9 +162,9 @@
   "instructions_to_main_agent": [
     "Strictly adhere to the dark/light mode surface colors and macOS system colors.",
     "Implement the left sidebar (240px), top title bar (52px), and bottom dock with exact blur settings.",
-    "For the Round Table view, enforce absolute data isolation. Users only see data (messages, calendar, files) scoped to the active table.",
+    "For the table view, enforce absolute data isolation. Users only see data (messages, calendar, files) scoped to the active table.",
     "All interactive elements must use the exact macOS shadows and border radii.",
-    "Integrate the 9 requested animation keyframes (table-live-glow, ring-rotate, etc.) and apply them perfectly in the Round Table component.",
+    "Integrate the 9 requested animation keyframes (table-live-glow, ring-rotate, etc.) and apply them perfectly in the table component.",
     "Build the Communications Hub with 4 explicit tabs (Email, Texts, Chat, Walkie). Simulate Walkie & Video Call functionality with realistic UI mockups.",
     "Ensure 'Traffic Lights' in the title bar use the exact hex codes provided (#FF5F57, #FFBD2E, #28C840).",
     "Persist dark/light mode toggle in localStorage.",

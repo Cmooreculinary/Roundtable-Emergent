@@ -31,9 +31,14 @@ dist/
 dist
 
 # Environment files (comprehensive coverage)
+.env
+.env.*
+*.env
 
 *token.json*
 *credentials.json*
+credentials.json
+*.key
 
 # Logs and debug files
 npm-debug.log*
@@ -63,6 +68,12 @@ chainlit.md
 
 # Data and databases
 agenthub/agents/youtube/db
+backend/data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
 
 # Archive files and large assets
 **/*.zip
@@ -80,48 +91,3 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/.env.test
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials

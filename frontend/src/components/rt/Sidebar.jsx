@@ -37,7 +37,7 @@ export default function Sidebar({ tables = [], activeTableId, currentPath, onNav
       ))}
 
       <div className="sb-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        Round Tables
+        Tables
         <button className="btn btn-ghost" onClick={onCreateTable} title="Create table" data-testid="sb-create-table-btn" style={{ padding: 2 }}>
           <Plus size={14} />
         </button>

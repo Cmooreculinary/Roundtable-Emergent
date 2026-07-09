@@ -1,6 +1,6 @@
-# Round Table — PRIMARY VERSION [Iteration 18 | Emergent Full-Stack]
+# Roundtable_VO — PRIMARY VERSION [Iteration 18a | SQLite Full-Stack]
 
-> **This is the current primary build.** Full-stack React + FastAPI + MongoDB with real WebRTC, Twilio SMS, Web Push, scene-based table environments, and the Gather Experience investor demo.
+> **This is the current primary build.** Full-stack React + FastAPI + SQLite with real WebRTC, Twilio SMS, Web Push, scene-based table environments, and the Gather Experience investor demo.
 
 **Where your people gather.** A macOS-styled unified collaboration platform replacing Slack, WhatsApp, Google Suite, email, and texting for families, faith communities, project teams, and neighborhoods.
 
@@ -11,9 +11,9 @@
 | Field | Value |
 |-------|-------|
 | **Status** | PRIMARY — Active Development |
-| **Iteration** | 18 |
-| **Platform** | Emergent → Render (Render-ready as of 2026-05-21) |
-| **Stack** | React 18 + FastAPI + MongoDB Atlas |
+| **Iteration** | 18a |
+| **Platform** | Render-ready as of 2026-05-21 |
+| **Stack** | React 19 + FastAPI + SQLite |
 | **Other versions** | `round-table` repo = Cloudflare/Hono edition (separate stack) |
 
 ---
@@ -38,19 +38,20 @@
 # 2. Connect repo to Render — render.yaml handles both services
 
 # Required env vars:
-# MONGO_URL, JWT_SECRET, CORS_ORIGINS
+# SQLITE_PATH, JWT_SECRET, CORS_ORIGINS, UPLOAD_ROOT
 # Optional: VAPID keys, TWILIO creds, ANTHROPIC_API_KEY (Smart Suggestions)
 ```
 
-The `render.yaml` at the repo root defines both the backend (Python web service) and frontend (static site).
+The `render.yaml` at the repo root defines both the backend (Python web service) and frontend (static site). SQLite and uploads are configured under `/opt/data`, backed by a Render persistent disk on the backend service. Render persistent disks require a paid web service; without the disk, local file changes are ephemeral across deploys/restarts.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: React 18, CRACO, TailwindCSS, shadcn/ui, WebRTC, Web Push
-- **Backend**: FastAPI (Python), Motor (async MongoDB), JWT auth, WebSockets
-- **Database**: MongoDB Atlas
+- **Frontend**: React 19, CRACO, TailwindCSS, shadcn/ui, WebRTC, Web Push
+- **Backend**: FastAPI (Python), SQLite-backed persistence, JWT auth, WebSockets
+- **Database**: SQLite
+- **Files**: Local disk-backed uploads with metadata in SQLite
 - **Real-time**: Native WebSockets (chat, signaling, co-viewing)
 - **AI**: Anthropic Claude Sonnet (Smart Suggestions — optional)
 - **Comms**: Twilio SMS, Web Push (pywebpush/VAPID)
@@ -60,10 +61,10 @@ The `render.yaml` at the repo root defines both the backend (Python web service)
 ## Project Structure
 
 ```
-Roundtable-Emergent/
+Roundtable_VO/
 ├── render.yaml                    # Render Blueprint (frontend + backend)
 ├── backend/
-│   ├── server.py                  # FastAPI app (2,382 lines, Iteration 18)
+│   ├── server.py                  # FastAPI app, Iteration 18a
 │   ├── requirements.txt           # Slim Render-ready dependencies
 │   ├── .env.example               # All required env vars documented
 │   └── tests/                     # 14 test files across all iterations

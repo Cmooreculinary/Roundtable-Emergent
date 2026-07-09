@@ -1,5 +1,5 @@
 """
-Round Table API Backend Tests
+Roundtable_VO API Backend Tests
 Tests all core endpoints: Auth, Users, Tables, Items, Messages, Emails, Events, Notifications, Invites, Contacts, Referrals
 """
 import pytest
@@ -27,7 +27,7 @@ class TestHealthCheck:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert "Round Table" in data["service"]
+        assert "Roundtable_VO" in data["service"]
         print(f"✓ API health check passed: {data}")
 
 
@@ -990,8 +990,8 @@ class TestAuthGuards:
 class TestResponseFormat:
     """Test that _id is excluded from all responses"""
     
-    def test_no_mongodb_id_in_responses(self):
-        """Test that MongoDB _id is not in API responses"""
+    def test_no_internal_id_in_responses(self):
+        """Test that internal _id is not in API responses"""
         session = requests.Session()
         session.post(f"{BASE_URL}/api/auth/login", json={
             "email": ADMIN_EMAIL,
@@ -1018,7 +1018,7 @@ class TestResponseFormat:
                 elif isinstance(data, dict):
                     assert "_id" not in data, f"_id found in {endpoint} response"
         
-        print("✓ No MongoDB _id found in API responses")
+        print("✓ No internal _id found in API responses")
 
 
 if __name__ == "__main__":

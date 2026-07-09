@@ -1,5 +1,5 @@
 """
-Shared pytest fixtures for Round Table API tests.
+Shared pytest fixtures for Roundtable_VO API tests.
 Credentials loaded from environment variables or .env.test file.
 """
 import pytest

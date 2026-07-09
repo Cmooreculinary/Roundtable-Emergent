@@ -151,7 +151,7 @@ class TestScenePersistence:
         assert r.status_code == 422
 
     def test_legacy_table_gets_default_scene(self, admin):
-        """A table inserted into Mongo without a scene field reads back DEFAULT_SCENE."""
+        """A table inserted without a scene field reads back DEFAULT_SCENE."""
         # Create via API then strip the scene via direct DB? We don't have direct DB — instead,
         # create a table and verify GET returns scene even if backend-old data lacked it.
         # Sanity: at minimum, default scene injection works on creation. Covered by

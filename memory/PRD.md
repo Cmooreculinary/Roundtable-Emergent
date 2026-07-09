@@ -1,7 +1,7 @@
-# Round Table — Product Requirements Document
+# Roundtable_VO — Product Requirements Document
 
 ## Original Vision
-> "Round Table is a macOS-styled unified collaboration platform that replaces Slack, WhatsApp, Google Suite, email, and SMS with a single, visually intuitive interface organized around the metaphor of gathering at a table. Built for families, faith communities, project teams, and neighborhoods. Core principle: If you can sit at a table, you can collaborate."
+> "Roundtable_VO is a macOS-styled unified collaboration platform that replaces Slack, WhatsApp, Google Suite, email, and SMS with a single, visually intuitive interface organized around the metaphor of gathering at a table. Built for families, faith communities, project teams, and neighborhoods. Core principle: If you can sit at a table, you can collaborate."
 
 ## Core Product Principle (user-emphasized, hard requirement)
 **Per-table data isolation.** "Each table will hold all of the info at that table, no bleeding and much easier on the user." When a user views a specific table, they see only that table's members, items, events, and chat — no cross-table contamination.
@@ -13,12 +13,12 @@
 - **Neighborhood organizer** — keeps neighbors connected.
 
 ## Tech Stack
-- Backend: FastAPI + MongoDB + JWT (httpOnly cookies, bcrypt).
+- Backend: FastAPI + SQLite + JWT (httpOnly cookies, bcrypt).
 - Frontend: React 19 + react-router-dom + Tailwind + lucide-react + sonner.
-- File storage: Emergent Object Storage (uploads/{user_id}/{uuid}.{ext}).
+- File storage: Local disk-backed uploads under `UPLOAD_ROOT`, with metadata in SQLite.
 - Real-time: Native WebSockets (signaling + presence + chat + WebRTC).
 - Push: VAPID-based Web Push via pywebpush.
-- AI: Claude Sonnet 4.5 via Emergent Universal LLM Key.
+- AI: Claude Sonnet via `ANTHROPIC_API_KEY`.
 
 ## Phase 1 — Implemented (Feb 2026)
 ### Backend
@@ -26,7 +26,7 @@
 - Users: get/update profile, list members
 - Tables: full CRUD with role-aware membership (owner/admin/member)
 - Shared items per table (CRUD)
-- File upload via Emergent Object Storage + protected download
+- File upload via local storage + protected download
 - Messages (1:1 + table-scoped)
 - Emails (folders: inbox/sent/starred/trash, read/star toggles)
 - Texts (SMS-style)
@@ -40,11 +40,11 @@
 
 ### Frontend
 - macOS title bar (traffic lights, centered title, theme toggle, notifications, profile)
-- Left sidebar (240px) — nav + Round Tables list with live/dormant states
+- Left sidebar (240px) — nav + tables list with live/dormant states
 - macOS dock (glass morphism, hover-lift, tooltips, unread badge)
 - 5-step onboarding wizard with progress bar + live table preview
 - Portal dashboard — 6 widgets + Communications Hub (Email/Texts/Chat/Walkie tabs)
-- Round Table view — circular wood-grain table, radial member seats, items on surface
+- Table view — circular wood-grain table, radial member seats, items on surface
 - Calendar — monthly grid, color-coded events, table filter
 - Messages — two-pane with walkie/video shortcuts
 - App Launcher — 24 apps with vendor filter
@@ -124,7 +124,7 @@
 
 ### Call History (Enhancement)
 - **`GET /api/calls/history`** — per-user call logs, last 30 days, sorted newest first
-- **`call_logs` MongoDB collection** — persists call_id, type, participants, started_at, ended_at, duration_seconds, status
+- **`call_logs` SQLite-backed collection** — persists call_id, type, participants, started_at, ended_at, duration_seconds, status
 - Calls are logged on `call_start`, participants added on `call_join`, finalized with duration on `call_leave` or WebSocket disconnect
 - **CallHistoryView** frontend page at `/call-history` — shows each call with avatar, call type icon (video blue, audio orange), direction (outgoing/incoming/missed), duration, time ago, green redial button
 - **Missed calls** highlighted in red
@@ -254,7 +254,7 @@ See `/app/memory/test_credentials.md`
 - **Iteration 16 (Gather Experience Demo — Feb 2026):** Cinematic investor prototype wired up. `/gather` route mounted, Portal launcher banner added, simulation auto-starts on load, `autoSeat` stabilized via `useCallback`. Screenshot smoke-test passed (steps 1→4 progressing in 8s). All 6 tabs (Room Builder, Avatar Seating, Live Table, Explore, Plans, Demo Notes) functional. Frontend testing agent NOT run (skipped to conserve credits per user request).
 - **Iteration 17 (Share Demo Link — Feb 2026):** Added "Share Demo" feature for investor pitches. New ShareModal with optional partner name input → generates `/gather?for=PartnerName` URL → one-click clipboard copy with success/error toasts. URL param drives a "Built for [Name]" gold pill badge in the demo header. Verified end-to-end via screenshot tool (3/3 flows passing). Lint clean.
 - **Iteration 18 (Scenes, Seats & Avatars — Feb 2026):** Persisted the `/gather` demo's scene architecture onto real `/table/:id` pages.
-  - **Backend:** Added `scene` (room/table/tabletop/food/ambiance/music) on `TableIn`/`TableUpdateIn` with `DEFAULT_SCENE` (library/mahogany/meeting/none/warm/off) for new and legacy tables. New `table_seats` MongoDB collection with unique `(table_id,seat_index)` and `(table_id,user_id)` indices. Endpoints: `GET /api/tables/{id}/seats`, `POST /api/tables/{id}/seats/claim` (auto-assigns first free if seat_index omitted), `DELETE /api/tables/{id}/seats/mine`. WebSocket broadcasts `table_scene_updated` + `table_seats_updated`. Avatar tier namespace reserved on User (`preset`|`stylized`|`premium_illustrated`|`photoreal`) — only stylized active.
+  - **Backend:** Added `scene` (room/table/tabletop/food/ambiance/music) on `TableIn`/`TableUpdateIn` with `DEFAULT_SCENE` (library/mahogany/meeting/none/warm/off) for new and legacy tables. New `table_seats` SQLite-backed collection with unique `(table_id,seat_index)` and `(table_id,user_id)` indices. Endpoints: `GET /api/tables/{id}/seats`, `POST /api/tables/{id}/seats/claim` (auto-assigns first free if seat_index omitted), `DELETE /api/tables/{id}/seats/mine`. WebSocket broadcasts `table_scene_updated` + `table_seats_updated`. Avatar tier namespace reserved on User (`preset`|`stylized`|`premium_illustrated`|`photoreal`) — only stylized active.
   - **Frontend:** New `lib/scenes.js` shared between standalone `/gather` demo and real tables. Refactored `GatherExperience.jsx` to import from it (demo unchanged). Rebuilt `RoundTableViz.jsx` to render the scene as a beautifully-lit room with wood-grain table and **N fixed seat slots** per Anchor 2 (mahogany 8, executive 10, family 6, drafting 8, luncheon 6, strategy 12). Seat slots are dashed when empty, show DiceBear portraits when claimed, with gold ring on the user's own seat. New `SceneEditorModal.jsx` exporting both controlled `<SceneEditor>` (used inline by CreateTableModal's collapsible "Customize scene (optional)" section) and uncontrolled default modal (used by TableView "Edit Scene" button). `Settings.jsx` shows Avatar Tier indicator card with locked "Coming soon" labels for the deferred tiers — no Premium picker, no upload pipeline, no paywall (namespace only).
   - **Tests:** 17/17 backend pytest cases passing in `backend/tests/test_iteration_18.py` (scene persistence, seat claim/leave/auto/range, avatar tier validation). 101/106 passing on regression sweep — 5 failures are pre-existing (stale invite code `HO4IIE6D` in test fixtures), not Iteration 18 regressions.
 - **Iteration 18a (Seat Correctness Pass — Feb 2026):** Two surgical bug fixes on the seat code requested by the founder before sharing the build externally. **Fix 1:** `PUT /api/tables/{id}` now truncates orphan seat claims when the scene's `table` field changes to a smaller-seat-count table (e.g. strategy 12 → family 6). Captures the old `scene.table` before the write, deletes any `table_seats` rows with `seat_index >= new_seat_count`, and broadcasts both `table_scene_updated` and `table_seats_updated`. Same-seat-count swaps (mahogany ↔ drafting, both 8 seats) deliberately skip truncation — no false positives on cosmetic table changes. Two new tests cover both paths. **Fix 2:** Verified that the only `table_members.delete*` call site is in `DELETE /api/tables/{id}`, which already cascades to `table_seats.delete_many` (Iteration 18 work). No kick or self-leave endpoint exists today, so the phantom-seat bug is dormant. Architectural note recorded for Iteration 19+ to mirror the cascade pattern when those endpoints ship. Tests: 19/19 passing (was 17/17). Zero regressions, zero frontend changes.

@@ -211,7 +211,7 @@ export default function TableView({ onShare, onInvite, onVideoCall }) {
         <PrayerWall tableId={id} onShare={() => onShare?.(table)} />
       ) : (
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", gap: 14 }} className="table-grid-2col">
-        {/* Left: Round Table viz */}
+        {/* Left: table visualization */}
         <div className="card" style={{ padding: 0, overflow: "hidden", minHeight: 560, position: "relative" }}>
           <RoundTableViz
             table={table}

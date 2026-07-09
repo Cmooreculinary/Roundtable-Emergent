@@ -161,7 +161,7 @@ export default function Settings() {
           <Sparkles size={14} color="var(--mac-purple)" /> Avatar Tier
         </div>
         <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 10 }}>
-          Your seat at every Round Table reflects your avatar tier.
+          Your seat at every Roundtable_VO table reflects your avatar tier.
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {AVATAR_TIERS.map((t) => {
@@ -198,7 +198,7 @@ export default function Settings() {
       <div className="card" style={{ padding: 16, marginTop: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Keyboard Shortcuts</div>
         <Row k="Esc" v="Dismiss any overlay or modal" />
-        <Row k="Click + on Tables" v="Create a new Round Table" />
+        <Row k="Click + on Tables" v="Create a new table" />
         <Row k="Hold the Talk button" v="Walkie talkie push-to-talk" />
       </div>
 

@@ -24,7 +24,7 @@ const TYPE_COLOR = {
 
 /**
  * RoundTableViz — Iteration 18.
- * Renders a real Round Table inside its scene (room background, wood-grain table,
+ * Renders a real table inside its scene (room background, wood-grain table,
  * fixed seat slots for the table type). Members claim seats; empty seats are dashed.
  *
  * Props:
@@ -274,7 +274,7 @@ function SceneChip({ label, dot }) {
 /**
  * Pure helper — derives seat visual state once.
  * Read this when you need to know what a seat looks like in any state.
- * The seat is the central metaphor of Round Table — make it explicit, not nested.
+ * The seat is the central metaphor of Roundtable_VO — make it explicit, not nested.
  */
 function seatVisuals({ occupant, isMine, isClaimable, isMoveTarget, seatNumber }) {
   // Empty seat — three sub-states

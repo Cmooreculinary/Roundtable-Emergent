@@ -204,7 +204,7 @@ class TestBridges:
         """POST /api/bridges/sms should return 503 when Twilio not configured"""
         resp = admin_auth.post(f"{BASE_URL}/api/bridges/sms", json={
             "phone": "+15551234567",
-            "message": "Test message from Round Table"
+            "message": "Test message from Roundtable_VO"
         })
         assert resp.status_code == 503, f"Expected 503 for unconfigured SMS, got {resp.status_code}"
         data = resp.json()
@@ -218,7 +218,7 @@ class TestBridges:
         resp = admin_auth.post(f"{BASE_URL}/api/bridges/email", json={
             "to_email": "test@example.com",
             "subject": "Test Subject",
-            "body": "Test body from Round Table"
+            "body": "Test body from Roundtable_VO"
         })
         assert resp.status_code == 503, f"Expected 503 for unconfigured email, got {resp.status_code}"
         data = resp.json()

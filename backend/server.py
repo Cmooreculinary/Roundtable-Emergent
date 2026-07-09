@@ -11,14 +11,13 @@ import jwt
 import secrets
 import string
 import logging
-import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
 from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response as FastResponse
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from sqlite_store import AsyncSQLiteClient
 from pydantic import BaseModel, Field, EmailStr
 import asyncio
 import json as _json
@@ -27,14 +26,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("roundtable")
 
 # ---------- Config ----------
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
+DB_NAME = os.environ.get("DB_NAME", "roundtable_vo")
+SQLITE_PATH = os.environ.get("SQLITE_PATH", str(ROOT_DIR / "data" / f"{DB_NAME}.sqlite3"))
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@roundtable.app")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "roundtable2026")
-APP_NAME = os.environ.get("APP_NAME", "roundtable")
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+APP_NAME = os.environ.get("APP_NAME", "Roundtable_VO")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY")
 VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:admin@roundtable.app")
@@ -48,12 +47,11 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "noreply@roundtable.app"
 
 CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
 
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-_storage_key: Optional[str] = None
+UPLOAD_ROOT = Path(os.environ.get("UPLOAD_ROOT", str(ROOT_DIR / "data" / "uploads")))
 
 # ---------- DB ----------
-mongo_client = AsyncIOMotorClient(MONGO_URL)
-db = mongo_client[DB_NAME]
+sqlite_client = AsyncSQLiteClient(SQLITE_PATH)
+db = sqlite_client[DB_NAME]
 
 
 # ---------- Helpers ----------
@@ -299,7 +297,7 @@ async def _handle_call_start(user_id: str, msg: dict):
         await ws_manager.send_to_user(target_user, incoming_payload)
         if not ws_manager.is_online(target_user):
             await send_push_to_user(target_user, f"Incoming {call_type} call", f"{caller_info.get('name', 'Someone')} is calling you", {"type": "call", "call_id": call_id})
-            await send_auto_sms_if_offline(target_user, f"{caller_info.get('name', 'Someone')} tried to call you ({call_type}). Open Round Table to call back!")
+            await send_auto_sms_if_offline(target_user, f"{caller_info.get('name', 'Someone')} tried to call you ({call_type}). Open Roundtable_VO to call back!")
     elif table_id:
         await ws_manager.broadcast_to_table(table_id, incoming_payload, exclude_user=user_id)
 
@@ -416,48 +414,35 @@ async def _handle_walkie_talk_state(user_id: str, msg: dict):
                 })
 
 
-# ---------- Object storage ----------
-def init_storage() -> Optional[str]:
-    global _storage_key
-    if _storage_key:
-        return _storage_key
-    if not EMERGENT_KEY:
-        logger.warning("EMERGENT_LLM_KEY not set — file uploads will be disabled.")
-        return None
-    try:
-        resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
-        resp.raise_for_status()
-        _storage_key = resp.json()["storage_key"]
-        logger.info("Object storage initialized.")
-        return _storage_key
-    except Exception as e:
-        logger.error(f"Storage init failed: {e}")
-        return None
+# ---------- Local file storage ----------
+def init_storage() -> Path:
+    UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+    return UPLOAD_ROOT
+
+
+def _storage_file(storage_path: str) -> Path:
+    relative = Path(storage_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise HTTPException(status_code=400, detail="Invalid storage path")
+    root = UPLOAD_ROOT.resolve()
+    target = (root / relative).resolve()
+    if target != root and root not in target.parents:
+        raise HTTPException(status_code=400, detail="Invalid storage path")
+    return target
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    key = init_storage()
-    if not key:
-        raise HTTPException(status_code=503, detail="Storage unavailable")
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data, timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    target = _storage_file(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return {"path": path, "size": len(data), "content_type": content_type}
 
 
 def get_object(path: str) -> tuple:
-    key = init_storage()
-    if not key:
-        raise HTTPException(status_code=503, detail="Storage unavailable")
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key}, timeout=60,
-    )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+    target = _storage_file(path)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return target.read_bytes(), "application/octet-stream"
 
 
 # ---------- Models ----------
@@ -605,7 +590,7 @@ class WalkiePingIn(BaseModel):
 
 
 # ---------- App ----------
-app = FastAPI(title="Round Table API")
+app = FastAPI(title="Roundtable_VO API")
 api = APIRouter(prefix="/api")
 
 
@@ -714,7 +699,7 @@ async def _send_event_reminders():
 
 @app.on_event("shutdown")
 async def shutdown():
-    mongo_client.close()
+    sqlite_client.close()
 
 
 # ---------- Auth endpoints ----------
@@ -1506,22 +1491,22 @@ async def create_invite(payload: InviteIn, user: dict = Depends(get_current_user
     # Send transactional invite email if recipient_email provided and Resend configured
     if payload.recipient_email and RESEND_API_KEY:
         t = await db.tables.find_one({"id": payload.table_id}, {"_id": 0})
-        table_name = t["name"] if t else "a Round Table"
+        table_name = t["name"] if t else "a Roundtable_VO table"
         try:
             import httpx
-            join_url = f"{CORS_ORIGINS[0] if CORS_ORIGINS else 'https://roundtable.app'}/join/{code}"
+            join_url = f"{CORS_ORIGINS[0] if CORS_ORIGINS else 'https://roundtable-vo.app'}/join/{code}"
             async with httpx.AsyncClient() as client:
                 await client.post(
                     "https://api.resend.com/emails",
                     headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
                     json={
-                        "from": f"Round Table <{RESEND_FROM_EMAIL}>",
+                        "from": f"Roundtable_VO <{RESEND_FROM_EMAIL}>",
                         "to": [payload.recipient_email],
-                        "subject": f"{user['name']} invited you to {table_name} on Round Table",
+                        "subject": f"{user['name']} invited you to {table_name} on Roundtable_VO",
                         "html": (
                             f"<div style='font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:480px;margin:0 auto;padding:32px;'>"
                             f"<h2 style='margin:0 0 12px;'>You're invited!</h2>"
-                            f"<p style='color:#555;line-height:1.6;'>{user['name']} wants you to join <strong>{table_name}</strong> on Round Table — where your people gather.</p>"
+                            f"<p style='color:#555;line-height:1.6;'>{user['name']} wants you to join <strong>{table_name}</strong> on Roundtable_VO — where your people gather.</p>"
                             f"<a href='{join_url}' style='display:inline-block;padding:14px 28px;background:#007AFF;color:white;text-decoration:none;border-radius:10px;font-weight:600;margin:20px 0;'>Join the Table</a>"
                             f"<p style='color:#999;font-size:13px;'>Or use invite code: <strong>{code}</strong></p>"
                             f"</div>"
@@ -1852,7 +1837,7 @@ async def send_auto_sms_if_offline(user_id: str, message: str):
                 data={
                     "From": TWILIO_FROM_NUMBER,
                     "To": user["phone"],
-                    "Body": f"[Round Table] {message}",
+                    "Body": f"[Roundtable_VO] {message}",
                 },
             )
             if resp.status_code < 300:
@@ -1903,7 +1888,7 @@ async def send_sms_bridge(payload: SMSBridgeIn, user: dict = Depends(get_current
                 data={
                     "From": TWILIO_FROM_NUMBER,
                     "To": payload.phone,
-                    "Body": f"[Round Table] {user['name']}: {payload.message}",
+                    "Body": f"[Roundtable_VO] {user['name']}: {payload.message}",
                 },
             )
             if resp.status_code >= 400:
@@ -1939,10 +1924,10 @@ async def send_email_bridge(payload: EmailBridgeIn, user: dict = Depends(get_cur
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "from": f"Round Table <{RESEND_FROM_EMAIL}>",
+                    "from": f"Roundtable_VO <{RESEND_FROM_EMAIL}>",
                     "to": [payload.to_email],
                     "subject": payload.subject,
-                    "html": f"<p>{payload.body}</p><hr><p><small>Sent via Round Table by {user['name']}</small></p>",
+                    "html": f"<p>{payload.body}</p><hr><p><small>Sent via Roundtable_VO by {user['name']}</small></p>",
                 },
             )
             resp.raise_for_status()
@@ -2187,7 +2172,7 @@ async def clear_all_notifications(user: dict = Depends(get_current_user)):
 # ---------- Health ----------
 @api.get("/")
 async def root():
-    return {"service": "Round Table API", "status": "ok"}
+    return {"service": "Roundtable_VO API", "status": "ok"}
 
 
 # ---------- AI Smart Suggestions ----------
@@ -2207,7 +2192,7 @@ async def suggest_events(table_id: str, user: dict = Depends(get_current_user)):
     t = await db.tables.find_one({"id": table_id}, {"_id": 0})
     if not t:
         raise HTTPException(status_code=404, detail="Table not found")
-    if not EMERGENT_KEY:
+    if not ANTHROPIC_API_KEY:
         return {"suggestions": [], "error": "AI key not configured"}
 
     prompt_data = await _build_suggest_prompt(t, table_id)
@@ -2228,7 +2213,7 @@ async def _build_suggest_prompt(table: dict, table_id: str) -> dict:
     guidance = PURPOSE_GUIDANCE.get(purpose, PURPOSE_GUIDANCE["other"])
     today = datetime.now(timezone.utc).date().isoformat()
     system = (
-        "You are the 'Round Table' scheduling helper. You propose warm, concrete, low-pressure event ideas for real-world groups. "
+        "You are the 'Roundtable_VO' scheduling helper. You propose warm, concrete, low-pressure event ideas for real-world groups. "
         "Return strictly valid JSON only — no commentary. Format: "
         '{"suggestions":[{"title":"","date":"YYYY-MM-DD","time":"HH:MM","description":"","reason":""}]}'
         " Exactly 3 suggestions. Dates must be in the future (after today). Use 24-hour time."
@@ -2246,7 +2231,7 @@ async def _build_suggest_prompt(table: dict, table_id: str) -> dict:
 async def _call_llm_suggest(table_id: str, system: str, prompt: str) -> str:
     """Call the LLM and return raw response text."""
     import anthropic
-    client = anthropic.AsyncAnthropic(api_key=EMERGENT_KEY)
+    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
     message = await client.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=1024,

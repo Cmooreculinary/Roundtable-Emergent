@@ -46,7 +46,7 @@ export default function Login() {
             <Armchair size={24} />
           </div>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Round Table</div>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Roundtable_VO</div>
             <div className="text-mute" style={{ fontSize: 12 }}>Where your people gather.</div>
           </div>
         </div>

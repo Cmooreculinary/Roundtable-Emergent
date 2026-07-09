@@ -44,7 +44,7 @@ export default function CreateTableModal({ onClose, onCreated }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="avatar" style={{ width: 36, height: 36, background: color, borderRadius: 10 }}><Armchair size={18} /></div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Create a Round Table</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>Create a table</div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>A space for your people to gather.</div>
             </div>
           </div>

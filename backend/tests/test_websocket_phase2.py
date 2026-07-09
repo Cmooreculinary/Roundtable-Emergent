@@ -1,5 +1,5 @@
 """
-Round Table Phase 2 WebSocket Tests
+Roundtable_VO Phase 2 WebSocket Tests
 Tests WebSocket endpoint, presence, live broadcasts, and real-time features
 """
 import pytest
