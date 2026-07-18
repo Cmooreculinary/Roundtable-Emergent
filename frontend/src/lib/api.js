@@ -1,5 +1,7 @@
 import axios from "axios";
 
+export const ACCESS_TOKEN_KEY = "rt-access-token";
+
 export function normalizeBackendUrl(value) {
   const configured = (value || "http://localhost:8001").trim().replace(/\/$/, "");
   return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
@@ -7,6 +9,29 @@ export function normalizeBackendUrl(value) {
 
 export const BACKEND_URL = normalizeBackendUrl(process.env.REACT_APP_BACKEND_URL);
 export const API = `${BACKEND_URL}/api`;
+
+function getSessionStorage() {
+  try {
+    return typeof window !== "undefined" ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getAccessToken() {
+  return getSessionStorage()?.getItem(ACCESS_TOKEN_KEY) || "";
+}
+
+export function setAccessToken(token) {
+  const storage = getSessionStorage();
+  if (!storage) return;
+  if (token) storage.setItem(ACCESS_TOKEN_KEY, token);
+  else storage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function clearAccessToken() {
+  setAccessToken("");
+}
 
 export function buildFileUrl(value) {
   if (!value) return "";
@@ -32,6 +57,23 @@ export const api = axios.create({
   baseURL: API,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (!token) return config;
+
+  if (typeof config.headers?.set === "function") {
+    if (!config.headers.has("Authorization")) {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    }
+  } else {
+    config.headers = config.headers || {};
+    if (!config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
 });
 
 export function formatApiErrorDetail(detail) {
