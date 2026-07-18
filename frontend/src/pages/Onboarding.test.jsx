@@ -5,10 +5,10 @@ import Onboarding from "./Onboarding";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
 
-const navigate = jest.fn();
+const mockNavigate = jest.fn();
 
 jest.mock("react-router-dom", () => ({
-  useNavigate: () => navigate,
+  useNavigate: () => mockNavigate,
 }));
 
 jest.mock("../contexts/AuthContext", () => ({
@@ -74,7 +74,7 @@ describe("Onboarding", () => {
     });
     api.get.mockResolvedValue({ data: { sms_configured: false } });
     api.post.mockReset();
-    navigate.mockReset();
+    mockNavigate.mockReset();
 
     await act(async () => {
       root.render(<Onboarding />);
@@ -95,13 +95,17 @@ describe("Onboarding", () => {
     const fireOrange = container.querySelector('[data-testid="onboard-color-EC5B13"]');
     expect(fireOrange.getAttribute("aria-checked")).toBe("false");
 
-    await act(async () => fireOrange.click());
+    await act(async () => {
+      fireOrange.click();
+    });
 
     expect(fireOrange.getAttribute("aria-checked")).toBe("true");
     expect(container.textContent).toContain("Selected: #EC5B13");
 
     const custom = container.querySelector('[data-testid="onboard-color-custom"]');
-    await act(async () => setInputValue(custom, "#123456"));
+    await act(async () => {
+      setInputValue(custom, "#123456");
+    });
     expect(container.textContent).toContain("Selected: #123456");
   });
 
@@ -116,6 +120,8 @@ describe("Onboarding", () => {
 
     await act(async () => {
       setInputValue(nameInput, "Chef Moore");
+    });
+    await act(async () => {
       container.querySelector('[data-testid="onboard-profile-next"]').click();
       await Promise.resolve();
     });
