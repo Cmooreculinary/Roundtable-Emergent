@@ -55,6 +55,11 @@ describe("Onboarding", () => {
 
   beforeAll(() => {
     global.IS_REACT_ACT_ENVIRONMENT = true;
+    Object.defineProperty(window.HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      writable: true,
+      value: jest.fn(),
+    });
   });
 
   beforeEach(async () => {
