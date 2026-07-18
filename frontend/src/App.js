@@ -8,6 +8,8 @@ import MainShell from "./pages/MainShell";
 import JoinByCode from "./pages/JoinByCode";
 import { Toaster } from "sonner";
 import "./App.css";
+import "./styles/onboarding.css";
+import "./styles/avatar-picker.css";
 
 const ThemeGate = ({ children }) => {
   useEffect(() => {
@@ -47,7 +49,13 @@ const RedirectIfAuthed = ({ children }) => {
 
 const OnboardGate = ({ children }) => {
   const { user } = useAuth();
-  if (user === null) return null;
+  if (user === null) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="text-mute" style={{ fontSize: 13 }}>Securing your setup…</div>
+      </div>
+    );
+  }
   if (user === false) return <Navigate to="/login" replace />;
   if (user.onboarded) return <Navigate to="/" replace />;
   return children;

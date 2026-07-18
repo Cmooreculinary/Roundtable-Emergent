@@ -38,7 +38,7 @@ jobs:
           openssl req -x509 -newkey rsa:2048 -nodes \
             -keyout /tmp/roundtable-ci.key -out /tmp/roundtable-ci.crt -days 1 \
             -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
-          uvicorn server:app --host 127.0.0.1 --port 8001 \
+          uvicorn app:app --host 127.0.0.1 --port 8001 \
             --ssl-keyfile /tmp/roundtable-ci.key \
             --ssl-certfile /tmp/roundtable-ci.crt \
             >/tmp/roundtable-ci-server.log 2>&1 &
@@ -52,7 +52,7 @@ jobs:
         env:
           PYTHONPATH: .
           REQUESTS_CA_BUNDLE: /tmp/roundtable-ci.crt
-        run: python -m pytest tests/test_iteration_18.py tests/test_roundtable_api.py tests/test_file_security.py -q
+        run: python -m pytest tests/test_iteration_18.py tests/test_roundtable_api.py tests/test_file_security.py tests/test_cross_origin_auth.py -q
 
   frontend:
     runs-on: ubuntu-latest
@@ -69,7 +69,18 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --include=dev
-      - run: npm test -- --watchAll=false --runInBand
+      - name: Run frontend tests
+        run: |
+          set -o pipefail
+          npm test -- --watchAll=false --runInBand 2>&1 | tee /tmp/roundtable-frontend-tests.log
         env:
           CI: "true"
+      - name: Upload frontend test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-diagnostics
+          path: /tmp/roundtable-frontend-tests.log
+          if-no-files-found: error
+          retention-days: 3
       - run: npm run build
