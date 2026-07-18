@@ -9,6 +9,7 @@ import JoinByCode from "./pages/JoinByCode";
 import { Toaster } from "sonner";
 import "./App.css";
 import "./styles/onboarding.css";
+import "./styles/avatar-picker.css";
 
 const ThemeGate = ({ children }) => {
   useEffect(() => {
