@@ -74,6 +74,7 @@
 
 html, body, #root {
   height: 100%;
+  min-height: 100%;
 }
 body {
   margin: 0;
@@ -85,6 +86,7 @@ body {
   color: var(--text-primary);
   transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
   overflow: hidden;
+  overscroll-behavior: none;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
 }
@@ -521,7 +523,13 @@ a[href^="tel:"]:hover, a[href^="sms:"]:hover {
 }
 .modal {
   width: min(520px, 94vw);
-  max-height: 90vh; overflow: auto;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   background: var(--bg-elevated);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -688,13 +696,21 @@ a[href^="tel:"]:hover, a[href^="sms:"]:hover {
 .app-root {
   display: flex; flex-direction: column;
   height: 100vh; width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-primary);
 }
 .app-body {
-  flex: 1; display: flex; min-height: 0;
+  flex: 1 1 auto; display: flex; min-height: 0; min-width: 0;
 }
 .main-content {
   flex: 1; overflow-y: auto;
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 24px 28px 100px;
   scroll-behavior: smooth;
 }
@@ -737,7 +753,10 @@ a[href^="tel:"]:hover, a[href^="sms:"]:hover {
   }
   .sidebar.mobile-open { transform: translateX(0); }
   .sidebar-backdrop { display: block; }
-  .main-content { padding: 16px 14px 110px; }
+  .main-content {
+    padding: 16px 14px calc(110px + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
   .dock-container { bottom: 6px; padding: 4px 6px; gap: 4px; }
   .dock-item { width: 40px; height: 40px; font-size: 18px; }
   /* Round table fits the screen */
