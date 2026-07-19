@@ -39,7 +39,7 @@ export default function CreateTableModal({ onClose, onCreated }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} data-testid="create-table-modal" style={{ maxWidth: 560, maxHeight: "90vh", overflow: "auto" }}>
+      <div className="modal create-table-modal" onClick={(e) => e.stopPropagation()} data-testid="create-table-modal" style={{ maxWidth: 560 }}>
         <div style={{ padding: 18, borderBottom: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="avatar" style={{ width: 36, height: 36, background: color, borderRadius: 10 }}><Armchair size={18} /></div>
