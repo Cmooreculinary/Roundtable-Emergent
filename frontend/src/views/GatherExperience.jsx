@@ -142,15 +142,16 @@ function RoomBuilder({ config, set }) {
       <div>
         <SectionTitle>Choose Your Room</SectionTitle>
         <CardGrid items={ROOMS} selected={config.room} onSelect={(r) => set("room", r)} renderCard={(r, sel) => (
-          <div style={{ height: 100, background: r.gradient, borderRadius: 12, display: "flex", alignItems: "flex-end", padding: 12 }}>
+          <div style={{ height: 128, backgroundImage: `linear-gradient(180deg, transparent 35%, rgba(0,0,0,.8)), url(${r.image})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, display: "flex", alignItems: "flex-end", padding: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 600, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{r.name}</span>
           </div>
         )} />
 
         <SectionTitle>Table Type</SectionTitle>
         <CardGrid items={TABLES} selected={config.table} onSelect={(t) => set("table", t)} renderCard={(t, sel) => (
-          <div style={{ height: 80, background: t.wood, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: t.id === "luncheon" ? "#333" : "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>{t.name}</span>
+          <div style={{ height: 110, background: "radial-gradient(circle, #2a2926, #111)", borderRadius: 8, display: "flex", alignItems: "flex-end", justifyContent: "center", position: "relative", overflow: "hidden", padding: 9 }}>
+            <img src={t.image} alt="" style={{ position: "absolute", inset: 5, width: "calc(100% - 10px)", height: "calc(100% - 26px)", objectFit: "contain", filter: "drop-shadow(0 8px 7px #000)" }} />
+            <span style={{ position: "relative", zIndex: 1, fontSize: 11, fontWeight: 700, color: "#fff", textShadow: "0 1px 3px #000" }}>{t.name}</span>
           </div>
         )} />
 
@@ -189,15 +190,11 @@ function RoomBuilder({ config, set }) {
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Live Preview</div>
         <div style={{
           height: 200, borderRadius: 12, overflow: "hidden", position: "relative",
-          background: config.room.gradient, marginBottom: 14,
+          backgroundImage: `url(${config.room.image})`, backgroundSize: "cover", backgroundPosition: "center", marginBottom: 14,
         }}>
           <div style={{ position: "absolute", inset: 0, background: config.ambiance.overlay }} />
-          <div style={{
-            position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)",
-            width: 120, height: 60, borderRadius: "50%",
-            background: config.table.wood, boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
+          <div style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", width: 180, height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={config.table.image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 10px 8px #000)" }} />
             <span style={{ fontSize: 16 }}>{config.tabletop.icon}</span>
           </div>
         </div>
@@ -335,7 +332,7 @@ function LiveTableView({ config, seated, simRunning, simStep, setSimStep, setSim
       {/* Room background */}
       <div style={{
         borderRadius: 20, overflow: "hidden", position: "relative",
-        minHeight: 520, background: config.room.gradient,
+        minHeight: 520, backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.55)), url(${config.room.image})`, backgroundSize: "cover", backgroundPosition: "center",
         boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
       }}>
         <div style={{ position: "absolute", inset: 0, background: config.ambiance.overlay }} />
@@ -367,7 +364,7 @@ function LiveTableView({ config, seated, simRunning, simStep, setSimStep, setSim
           {/* Table */}
           <div style={{
             width: 220, height: 220, borderRadius: "50%",
-            background: config.table.wood,
+            backgroundImage: `url(${config.table.image})`, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center",
             boxShadow: "0 12px 40px rgba(0,0,0,0.5), inset 0 2px 6px rgba(255,255,255,0.1)",
             display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
             position: "relative",

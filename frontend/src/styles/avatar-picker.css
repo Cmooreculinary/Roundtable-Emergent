@@ -169,3 +169,9 @@
     transition: none;
   }
 }
+.avatar-environments { padding: 14px; border-bottom: 1px solid var(--border-light); }
+.avatar-environments > span { display: block; margin-bottom: 8px; color: var(--text-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.avatar-environments > div { display: flex; gap: 6px; overflow-x: auto; }
+.avatar-environments button { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 11px; }
+.avatar-environments button.is-selected { border-color: #EC5B13; background: rgba(236,91,19,.13); color: #fff; }
+.avatar-environments small { display: block; margin-top: 8px; color: var(--text-secondary); font-size: 10px; }

@@ -4,21 +4,21 @@
 // Iteration 18 — single source of truth.
 
 export const ROOMS = [
-  { id: "skyline", name: "Skyline Executive Room", gradient: "linear-gradient(135deg, #0a1628 0%, #1a3a5c 40%, #2d5a7b 100%)", accent: "#5AC8FA" },
-  { id: "dining", name: "Warm Private Dining", gradient: "linear-gradient(135deg, #3d1c02 0%, #6b3a1f 50%, #8b5e3c 100%)", accent: "#FF9500" },
-  { id: "studio", name: "Creative Studio", gradient: "linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #4a4a6a 100%)", accent: "#AF52DE" },
-  { id: "library", name: "Fireside Library", gradient: "linear-gradient(135deg, #2a1810 0%, #4a2c1a 50%, #6b4226 100%)", accent: "#FFCC00" },
-  { id: "church", name: "Church / Community", gradient: "linear-gradient(135deg, #1a0a2e 0%, #2d1a4a 50%, #4a2d6b 100%)", accent: "#FF2D55" },
-  { id: "terrace", name: "Outdoor Terrace", gradient: "linear-gradient(135deg, #0a2a1a 0%, #1a4a2d 50%, #2d6b4a 100%)", accent: "#34C759" },
+  { id: "skyline", name: "Skyline Suite", image: "/scenes/skyline-suite.webp", gradient: "#111820", accent: "#76A9FF", description: "A private high-rise room above the city at blue hour." },
+  { id: "dining", name: "Family Garden Room", image: "/scenes/family-dining.webp", gradient: "#8A684D", accent: "#E7B76A", description: "A warm contemporary home opening onto a landscaped garden." },
+  { id: "studio", name: "Coastal Bay Room", image: "/scenes/coastal-bay.webp", gradient: "#8CA7B5", accent: "#83C7E8", description: "A bright, refined room overlooking open water." },
+  { id: "library", name: "Fireside Library", image: "/scenes/fireside-library.webp", gradient: "#2A160D", accent: "#D9A34A", description: "Dark walnut, leather, firelight, and quiet conversation." },
+  { id: "church", name: "Mountain Lodge", image: "/scenes/mountain-lodge.webp", gradient: "#2B211C", accent: "#E8A95C", description: "A timber lodge above snow-covered mountain country." },
+  { id: "terrace", name: "Garden Terrace", image: "/scenes/garden-terrace.webp", gradient: "#243222", accent: "#E9AD54", description: "An open-air gathering lawn under mature trees and warm lights." },
 ];
 
 export const TABLES = [
-  { id: "mahogany", name: "Mahogany Round Table", color: "#6b3a1f", wood: "linear-gradient(135deg, #8b5e3c 0%, #6b3a1f 50%, #4a2510 100%)" },
-  { id: "executive", name: "Executive Board Table", color: "#2c2c2e", wood: "linear-gradient(135deg, #3a3a3c 0%, #2c2c2e 50%, #1c1c1e 100%)" },
-  { id: "family", name: "Family Dinner Table", color: "#a47a4c", wood: "linear-gradient(135deg, #c9a274 0%, #a47a4c 50%, #7a4f2b 100%)" },
-  { id: "drafting", name: "Drafting / Planning", color: "#4a6741", wood: "linear-gradient(135deg, #5a7a51 0%, #4a6741 50%, #3a5431 100%)" },
-  { id: "luncheon", name: "Luncheon Table", color: "#f5f0e8", wood: "linear-gradient(135deg, #fff 0%, #f5f0e8 50%, #e8e0d0 100%)" },
-  { id: "strategy", name: "Strategy War Table", color: "#1c3a5c", wood: "linear-gradient(135deg, #2d5a7b 0%, #1c3a5c 50%, #0a1a3c 100%)" },
+  { id: "mahogany", name: "Heritage Mahogany Round", image: "/tables/mahogany-round.png", color: "#6b2f17", wood: "#6b2f17" },
+  { id: "executive", name: "Walnut Executive Board", image: "/tables/executive-board.png", color: "#3b1f14", wood: "#3b1f14" },
+  { id: "family", name: "Black Oak Round", image: "/tables/black-round.png", color: "#151515", wood: "#151515" },
+  { id: "drafting", name: "Pale Oak Farm Table", image: "/tables/farmhouse-long.png", color: "#c79a62", wood: "#c79a62" },
+  { id: "luncheon", name: "Formal Linen Oval", image: "/tables/formal-oval.png", color: "#f1eadc", wood: "#f1eadc" },
+  { id: "strategy", name: "Charcoal Strategy Round", image: "/tables/strategy-round.png", color: "#232323", wood: "#232323" },
 ];
 
 // Anchor 2 — fixed seat counts per table type

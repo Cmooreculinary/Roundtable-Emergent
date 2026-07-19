@@ -22,12 +22,22 @@ const SEEDS = [
   "Lark", "Onyx", "Rune", "Vale", "Blaze", "Cove", "Frost", "Jade",
 ];
 
-function avatarUrl(style, seed) {
-  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&radius=50&size=120`;
+const ENVIRONMENTS = [
+  { id: "everyday", label: "Everyday", color: "e7e5e4", style: "adventurer" },
+  { id: "family", label: "Family", color: "f3e2c7", style: "lorelei" },
+  { id: "professional", label: "Professional", color: "d1d4d8", style: "personas" },
+  { id: "faith", label: "Faith & Community", color: "ead8c0", style: "notionists" },
+  { id: "outdoors", label: "Outdoors", color: "c6d8bd", style: "adventurer" },
+  { id: "creative", label: "Creative", color: "d8c8e8", style: "micah" },
+];
+
+function avatarUrl(style, seed, backgroundColor) {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&radius=50&size=160&backgroundColor=${backgroundColor}`;
 }
 
 export default function AvatarPicker({ currentUrl, onSelect, onClose }) {
   const [selectedStyle, setSelectedStyle] = useState(STYLES[0].id);
+  const [environment, setEnvironment] = useState(ENVIRONMENTS[0]);
   const [selected, setSelected] = useState(currentUrl || null);
   const closeButtonRef = useRef(null);
 
@@ -66,8 +76,8 @@ export default function AvatarPicker({ currentUrl, onSelect, onClose }) {
       >
         <header className="avatar-picker-header">
           <div>
-            <div id="avatar-picker-title" className="avatar-picker-title">Choose Your Avatar</div>
-            <div id="avatar-picker-description" className="avatar-picker-description">Pick a style, then choose your look.</div>
+            <div id="avatar-picker-title" className="avatar-picker-title">Build Your Roundtable Avatar</div>
+            <div id="avatar-picker-description" className="avatar-picker-description">Create one identity that can move naturally between every gathering.</div>
           </div>
           <button
             ref={closeButtonRef}
@@ -80,6 +90,12 @@ export default function AvatarPicker({ currentUrl, onSelect, onClose }) {
             <X size={16} />
           </button>
         </header>
+
+        <div className="avatar-environments" role="list" aria-label="Gathering environment">
+          <span>Start with a setting</span>
+          <div>{ENVIRONMENTS.map((item) => <button key={item.id} type="button" className={environment.id === item.id ? "is-selected" : ""} onClick={() => { setEnvironment(item); setSelectedStyle(item.style); }}>{item.label}</button>)}</div>
+          <small>The setting recommends a presentation; your identity stays yours.</small>
+        </div>
 
         <div className="avatar-picker-styles" role="tablist" aria-label="Avatar styles">
           {STYLES.map((style) => (
@@ -100,7 +116,7 @@ export default function AvatarPicker({ currentUrl, onSelect, onClose }) {
         <div className="avatar-picker-scroll">
           <div className="avatar-picker-grid" role="radiogroup" aria-label="Avatar options">
             {SEEDS.map((seed) => {
-              const url = avatarUrl(selectedStyle, seed);
+              const url = avatarUrl(selectedStyle, seed, environment.color);
               const isSelected = selected === url;
               return (
                 <button
