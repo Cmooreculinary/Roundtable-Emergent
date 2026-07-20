@@ -497,7 +497,7 @@ function LiveTableView({ config, seated, simRunning, simStep, setSimStep, setSim
 // ══════════════════════════════════════════════
 function ExploreGrid({ set, setTab }) {
   const resolve = (list, id) => list.find((item) => item.id === id);
-  const useScenario = (scenario, destination) => {
+  const loadScenario = (scenario, destination) => {
     ["room", "table", "tabletop", "food", "ambiance", "music"].forEach((key) => set(key, resolve({ room: ROOMS, table: TABLES, tabletop: TABLETOPS, food: FOODS, ambiance: AMBIANCES, music: MUSICS }[key], scenario[key])));
     setTab(destination);
     toast.success(`${scenario.name} loaded`);
@@ -528,8 +528,8 @@ function ExploreGrid({ set, setTab }) {
               <InfoRow label="Ambiance" value={ambiance.name} />
               <InfoRow label="Music" value={music.name} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-                <button onClick={() => useScenario(c, "builder")} style={actionBtn("rgba(255,255,255,.1)")}><Settings2 size={13} /> Customize</button>
-                <button onClick={() => useScenario(c, "live")} style={actionBtn("#EC5B13")}><Play size={13} /> Enter</button>
+                <button onClick={() => loadScenario(c, "builder")} style={actionBtn("rgba(255,255,255,.1)")}><Settings2 size={13} /> Customize</button>
+                <button onClick={() => loadScenario(c, "live")} style={actionBtn("#EC5B13")}><Play size={13} /> Enter</button>
               </div>
             </div>
           </div>
