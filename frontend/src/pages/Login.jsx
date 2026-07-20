@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Armchair } from "lucide-react";
+import { Armchair, ArrowRight, Play } from "lucide-react";
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,11 +26,23 @@ export default function Login() {
   };
 
   return (
-    <div className="onboard-bg onboard-bg--scrollable">
+    <main className="roundtable-landing">
       <div style={betaBadgeStyle} data-testid="beta-badge">BETA</div>
-      <div className="onboard-card" style={{ maxWidth: 420, margin: "auto" }}>
+      <section className="roundtable-landing__story" aria-label="Roundtable gathering worlds">
+        <video className="roundtable-landing__film" autoPlay muted loop playsInline poster="/landing/roundtable-worlds.png">
+          <source src="/landing/roundtable-intro.mp4" type="video/mp4" />
+        </video>
+        <div className="roundtable-landing__shade" />
+        <div className="roundtable-landing__copy">
+          <span className="roundtable-landing__eyebrow">One place for every circle</span>
+          <h1>Your people.<br />Their world.<br /><em>One Roundtable.</em></h1>
+          <p>Family dinner. Leadership meeting. Team strategy. Trail planning. Bible study. Every gathering gets the room it deserves.</p>
+          <a className="roundtable-landing__watch" href="/gather"><Play size={15} fill="currentColor" /> Experience Roundtable</a>
+        </div>
+      </section>
+      <section className="onboard-card roundtable-landing__auth">
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <div className="avatar" style={{ width: 44, height: 44, background: "var(--mac-blue)", borderRadius: 12 }}>
+          <div className="avatar" style={{ width: 44, height: 44, background: "#EC5B13", borderRadius: 6 }}>
             <Armchair size={24} />
           </div>
           <div>
@@ -85,11 +97,11 @@ export default function Login() {
         <div style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: "var(--text-secondary)" }}>
           New here?{" "}
           <Link to="/register" style={{ color: "var(--mac-blue)", fontWeight: 600, textDecoration: "none" }} data-testid="login-go-register">
-            Create an account
+            Create an account <ArrowRight size={12} />
           </Link>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 

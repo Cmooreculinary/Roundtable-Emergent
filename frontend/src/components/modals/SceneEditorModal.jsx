@@ -23,11 +23,11 @@ import {
 import "../../styles/scene-editor.css";
 
 const ROOM_NOTES = {
-  skyline: "City lights · executive focus",
-  dining: "Warm wood · private service",
-  studio: "Open plan · creative energy",
-  library: "Firelight · quiet conversation",
-  church: "Community scale · shared purpose",
+  skyline: "City lights · private focus",
+  dining: "Warm home · garden light",
+  studio: "Open water · natural light",
+  library: "Walnut · leather · firelight",
+  church: "Timber · snow · hearth",
   terrace: "Open air · garden atmosphere",
 };
 
@@ -108,10 +108,7 @@ export function SceneEditor({ value, onChange }) {
               label={room.name}
               className="scene-room-card"
             >
-              <div className={`scene-room-card__art scene-room-card__art--${room.id}`} style={{ background: room.gradient }}>
-                <span className="scene-room-card__window" />
-                <span className="scene-room-card__horizon" />
-              </div>
+              <div className={`scene-room-card__art scene-room-card__art--${room.id}`} style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, rgba(0,0,0,.72)), url(${room.image})` }} />
               <ChoiceCopy title={room.name} detail={ROOM_NOTES[room.id]} selected={scene.room === room.id} />
             </ChoiceCard>
           ))}
@@ -135,7 +132,7 @@ export function SceneEditor({ value, onChange }) {
               className="scene-table-card"
             >
               <div className="scene-table-card__art">
-                <span className={`scene-table-card__top scene-table-card__top--${table.id}`} style={{ background: table.wood }} />
+                <img className="scene-table-card__product" src={table.image} alt="" />
                 <span className="scene-table-card__seat-count">{SEAT_COUNTS[table.id]}</span>
               </div>
               <ChoiceCopy title={table.name} detail={`${TABLE_NOTES[table.id]} · ${SEAT_COUNTS[table.id]} seats`} selected={scene.table === table.id} />
@@ -262,11 +259,8 @@ function ScenePreview({ scene, resolved, seatCount }) {
   const seats = Array.from({ length: seatCount });
 
   return (
-    <div className={`scene-preview scene-preview--${scene.room}`} data-testid="scene-preview" style={{ background: resolved.room.gradient }}>
+    <div className={`scene-preview scene-preview--${scene.room}`} data-testid="scene-preview" style={{ backgroundImage: `url(${resolved.room.image})` }}>
       <div className="scene-preview__ambient" style={{ background: resolved.ambiance.overlay }} />
-      <div className="scene-preview__architecture" aria-hidden="true">
-        <span /><span /><span /><span />
-      </div>
       <div className="scene-preview__caption">
         <span>Live preview</span>
         <strong>{resolved.room.name}</strong>
@@ -275,7 +269,8 @@ function ScenePreview({ scene, resolved, seatCount }) {
         <Music2 size={13} /> {resolved.music.name}
       </div>
       <div className="scene-preview__floor" />
-      <div className={`scene-preview__table scene-preview__table--${scene.table}`} style={{ background: resolved.table.wood }}>
+      <div className={`scene-preview__table scene-preview__table--${scene.table}`}>
+        <img className="scene-preview__table-image" src={resolved.table.image} alt="" />
         <span className="scene-preview__tabletop" aria-hidden="true">{resolved.tabletop.icon}</span>
         {seats.map((_, index) => {
           const angle = (360 / seatCount) * index - 90;

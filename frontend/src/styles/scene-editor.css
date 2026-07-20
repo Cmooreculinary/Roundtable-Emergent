@@ -64,6 +64,8 @@
   border-radius: 6px;
   isolation: isolate;
   box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.35);
+  background-position: center;
+  background-size: cover;
 }
 
 .scene-preview::after {
@@ -117,9 +119,7 @@
   z-index: 3;
   height: 58%;
   transform: perspective(320px) rotateX(58deg);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 70px, rgba(232,222,203,0.08) 71px),
-    linear-gradient(180deg, rgba(12,12,12,0.42), rgba(6,6,6,0.88));
+  background: linear-gradient(180deg, rgba(12,12,12,0.02), rgba(6,6,6,0.2));
   border-top: 1px solid rgba(232,222,203,0.12);
 }
 
@@ -168,12 +168,10 @@
   left: 50%;
   bottom: 20%;
   z-index: 6;
-  width: clamp(130px, 25%, 200px);
-  aspect-ratio: 1.8 / 1;
-  transform: translateX(-50%) perspective(450px) rotateX(57deg);
-  border: 2px solid rgba(232,222,203,0.25);
-  border-radius: 50%;
-  box-shadow: inset 0 5px 12px rgba(255,255,255,0.14), 0 30px 25px rgba(0,0,0,0.6);
+  width: clamp(190px, 36%, 300px);
+  aspect-ratio: 1.6 / 1;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 24px 20px rgba(0,0,0,.68));
 }
 
 .scene-preview__table--executive,
@@ -182,6 +180,14 @@
 
 .scene-preview__table--family,
 .scene-preview__table--luncheon { aspect-ratio: 1.45 / 1; }
+
+.scene-preview__table-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
 .scene-preview__tabletop {
   position: absolute;
@@ -322,7 +328,7 @@
 .is-selected .scene-choice__check,
 .is-selected .scene-option__check { border-color: var(--scene-fire); background: var(--scene-fire); }
 
-.scene-room-card__art { position: relative; height: 84px; overflow: hidden; }
+.scene-room-card__art { position: relative; height: 112px; overflow: hidden; background-position: center; background-size: cover; }
 .scene-room-card__art::after {
   content: "";
   position: absolute;
@@ -352,6 +358,13 @@
   height: 86px;
   place-items: center;
   background: radial-gradient(circle at 50% 45%, #292725, #111);
+}
+
+.scene-table-card__product {
+  width: 86%;
+  height: 76px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 8px rgba(0,0,0,.7));
 }
 
 .scene-table-card__top {
