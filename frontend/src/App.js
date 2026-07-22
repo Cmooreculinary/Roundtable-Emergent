@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 import "./App.css";
 import "./styles/onboarding.css";
 import "./styles/avatar-picker.css";
+import "./styles/user-audit.css";
 
 const ThemeGate = ({ children }) => {
   useEffect(() => {
