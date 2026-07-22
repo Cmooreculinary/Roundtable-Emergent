@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Calendar, FileText, MessageSquare, Video, Cloud, Map, Camera, Music, ShoppingBag, Tv, Book, Newspaper, Phone, Heart, Compass, Wrench, Palette, Shield, Image as ImgIcon, FileSpreadsheet, Presentation, Film, Clock } from "lucide-react";
+import { Mail, Calendar, FileText, MessageSquare, Video, Cloud, Map, Camera, Music, FileSpreadsheet, Presentation, Film, Clock } from "lucide-react";
 
 const APPS = [
   { name: "Mail", vendor: "apple", icon: <Mail />, bg: "linear-gradient(135deg, #5AC8FA, #007AFF)" },
@@ -34,17 +34,28 @@ export default function AppsView() {
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-      <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Apps</h1>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="audit-page-header" style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>Apps</h1>
+          <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>Integration catalog preview. Connections are not active from this screen.</div>
+        </div>
+        <div className="audit-action-group" aria-label="Filter app catalog">
           {["all", "apple", "google", "microsoft"].map((f) => (
-            <button key={f} className={`btn ${filter === f ? "btn-primary" : "btn-secondary"}`} onClick={() => setFilter(f)} data-testid={`apps-filter-${f}`} style={{ textTransform: "capitalize" }}>{f}</button>
+            <button key={f} type="button" className={`btn ${filter === f ? "btn-primary" : "btn-secondary"}`} onClick={() => setFilter(f)} data-testid={`apps-filter-${f}`} aria-pressed={filter === f} style={{ textTransform: "capitalize" }}>{f}</button>
           ))}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 14 }}>
+      <div role="list" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 14 }}>
         {shown.map((a, i) => (
-          <div key={`${a.name}-${a.vendor}-${i}`} className="card card-hover" style={{ padding: 14, textAlign: "center", cursor: "pointer" }} data-testid={`app-${a.name}-${a.vendor}`}>
+          <div
+            key={`${a.name}-${a.vendor}-${i}`}
+            role="listitem"
+            aria-disabled="true"
+            className="card"
+            style={{ padding: 14, textAlign: "center", position: "relative" }}
+            data-testid={`app-${a.name}-${a.vendor}`}
+          >
+            <span style={{ position: "absolute", top: 7, right: 7, fontSize: 8, fontWeight: 700, letterSpacing: 0.5, color: "var(--text-tertiary)", textTransform: "uppercase" }}>Preview</span>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: a.bg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
               {a.icon}
             </div>
